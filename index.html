@@ -4907,22 +4907,28 @@ async function runGame(){
      db.doc(path)        → .get() .set() .update() .delete() .onSnapshot()
      db.collection(path) → .onSnapshot()  ({docs:[{id, data()}]})
 
-   ── 왜 문서 하나를 통째로 JSON 문자열로 넣는가 ──
-   Realtime Database는 빈 배열·빈 객체를 null로 지워버리고, undefined가
-   섞이면 쓰기 자체를 거부하며, 배열을 숫자 키 객체로 바꿔 저장합니다.
-   게임 상태에는 빈 손패([]), 빈 버림더미, 로그 배열이 수시로 오가므로
-   그 변환을 하나하나 방어하는 것보다, 문서 하나를 통째로 JSON 문자열
-   필드(j) 하나에 담는 편이 훨씬 단순하고 안전합니다. 대신 부분 병합
-   (update)은 DB가 대신 해줄 수 없으니 아래에서 읽고-합치고-쓰기로
-   구현합니다 — 방 문서를 병합 수정하는 건 방장 한 명뿐이라 안전합니다. */
+   ── 왜 문서 본문을 `__doc` 라는 자식 칸에 넣는가 ──
+   RTDB에는 "문서"가 없고 **하나의 큰 트리**만 있습니다. 그래서 어떤 경로에
+   set을 하면 **그 아래 하위 트리가 통째로 지워집니다.** 방 문서(rooms/ABC)는
+   그 아래에 members·state·hands·req·res를 거느리고 있으므로, 방 문서를
+   저장할 때마다 참가자 목록과 게임 상태가 같이 날아갑니다. 실제 증상은
+   "참가자가 몇 초마다 나타났다 사라짐"이었습니다 — 심박 신호가 자기
+   참가자 칸을 다시 쓰고, 다음 방 문서 저장이 다시 지우기를 반복한 것.
+   그래서 문서 본문은 경로 자체가 아니라 그 아래 `__doc` 칸에 둡니다.
+   `rooms/ABC/__doc`는 자식이 없는 잎이라, 여기에 set을 해도 옆에 있는
+   `rooms/ABC/members`는 건드리지 않습니다. */
 
 // fb = { db, ref, get, set, remove, onValue }  (Firebase 모듈러 SDK 함수들)
 function makeFirebaseStore(fb){
+  const DOC_LEAF = '__doc';
   const enc = (obj)=>({ j: JSON.stringify(obj), t: Date.now() });
   const dec = (val)=>{
     if(!val || typeof val.j !== 'string') return null;
     try{ return JSON.parse(val.j); }catch(_e){ return null; }
   };
+  // 컬렉션을 훑을 때 각 자식은 노드({__doc:{…}, 그리고 더 깊은 가지들})로
+  // 들어오므로, 거기서 본문 칸만 꺼냅니다.
+  const unwrap = (node)=> (node && typeof node === 'object') ? node[DOC_LEAF] : null;
   const mkSnap = (id, val)=>{
     const data = dec(val);
     return { id, exists: data!==null, data: ()=>(data===null?undefined:data),
@@ -4936,24 +4942,27 @@ function makeFirebaseStore(fb){
       throw new TypeError('문서 경로는 세그먼트 개수가 짝수여야 합니다: '+path);
     }
     const id = segs(path).pop();
+    const leaf = path + '/' + DOC_LEAF;   // 본문이 실제로 저장되는 자리
     return {
       id, path,
       get: async ()=>{
-        const s = await fb.get(R(path));
+        const s = await fb.get(R(leaf));
         return mkSnap(id, s.exists() ? s.val() : null);
       },
-      set: (data)=> fb.set(R(path), enc(data)),
+      set: (data)=> fb.set(R(leaf), enc(data)),
       update: async (patch)=>{
         // 읽고-합치고-쓰기. NET 계층에서 update를 쓰는 건 방 문서를 고치는
         // 방장뿐이고(참가자는 각자 자기 문서를 set으로만 씀), 그래서
         // 여기서 경합이 날 일이 사실상 없습니다.
-        const s = await fb.get(R(path));
+        const s = await fb.get(R(leaf));
         const cur = s.exists() ? (dec(s.val()) || {}) : {};
-        return fb.set(R(path), enc(Object.assign(cur, patch)));
+        return fb.set(R(leaf), enc(Object.assign(cur, patch)));
       },
+      // 삭제는 본문만이 아니라 **하위 트리 전체**를 치웁니다 — 방장이
+      // "나가기"를 누르면 그 방의 참가자·상태까지 같이 사라져야 맞습니다.
       delete: ()=> fb.remove(R(path)),
       onSnapshot: (next, error)=>{
-        return fb.onValue(R(path),
+        return fb.onValue(R(leaf),
           (s)=>{ try{ next(mkSnap(id, s.exists() ? s.val() : null)); }catch(_e){} },
           (e)=>{ if(error) error({code:'unavailable', message:String(e)}); });
       },
@@ -4968,7 +4977,10 @@ function makeFirebaseStore(fb){
     const build = (s)=>{
       const docs = [];
       if(s.exists()){
-        s.forEach((child)=>{ docs.push(mkSnap(child.key, child.val())); });
+        s.forEach((child)=>{
+          const body = unwrap(child.val());
+          if(body) docs.push(mkSnap(child.key, body));
+        });
       }
       return { docs, size:docs.length, empty:!docs.length,
                docChanges:()=>[], metadata:{fromCache:false, hasPendingWrites:false} };
