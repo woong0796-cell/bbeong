@@ -1,0 +1,20 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      "$code": {
+        ".read":  "$code.matches(/^[A-HJ-NP-Z2-9]{6}$/)",
+        ".write": "$code.matches(/^[A-HJ-NP-Z2-9]{6}$/)"
+      }
+    },
+
+    "index": {
+      ".read": true,
+      "$code": {
+        ".write": "$code.matches(/^[A-HJ-NP-Z2-9]{6}$/) && (newData.val() === null || newData.isNumber())"
+      }
+    }
+  }
+}
