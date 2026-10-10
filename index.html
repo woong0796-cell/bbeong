@@ -844,7 +844,14 @@
   /* touch-action:none so a touch-drag on a card reorders it instead of the
      browser trying to scroll the page with the same gesture (see the hand
      drag-to-reorder feature). */
-  .hand .card{width:70px;height:98px;font-size:70px;touch-action:none;}
+  .hand .card{width:70px;height:98px;font-size:70px;touch-action:none;-webkit-touch-callout:none;}
+  /* 끌고 있는 카드 — 손가락을 그대로 따라다닙니다. transition을 꺼야 좌표가
+     한 박자 늦게 따라오지 않고, animation을 꺼야 뻥 강조(reactionGlow)의
+     transform이 추적 좌표를 덮어쓰지 않습니다. */
+  .hand .card.dragging{
+    transition:none !important; animation:none !important;
+    z-index:6; cursor:grabbing; box-shadow:0 16px 30px rgba(0,0,0,.34);
+  }
   .hand .cardback{width:70px;height:98px;border-radius:8px;}
   /* Generic card-flip transform, reused by the dealer-pick reveal and by the
      hand's own deal-in reveal (see revealHumanHand). */
@@ -2839,7 +2846,7 @@ function renderDealerSlots(pickers){
     const slot = document.createElement('div');
     slot.className = 'dealer-slot';
     slot.dataset.idx = idx;
-    slot.innerHTML = '<span class="name">'+p.name+(idx===0?' (나)':'')+'</span>'
+    slot.innerHTML = '<span class="name">'+p.name+(seatIsMine(idx)?' (나)':'')+'</span>'
       + '<div class="slot-card"><div class="card empty"></div></div>';
     wrap.appendChild(slot);
   });
@@ -2884,6 +2891,7 @@ async function runDealerSelection(){
   let pool = shuffle(createDeck());
 
   while(true){
+    NET.dealerReveal = null; // 동점 재추첨이면 지난 공개 결과를 지우고 다시 시작
     if(pool.length < pickers.length) pool = shuffle(createDeck());
     const fanEntries = pickers.map(idx=>({idx, card: pool.pop(), taken:false}));
     renderDealerSlots(pickers);
@@ -2926,6 +2934,14 @@ async function runDealerSelection(){
     let maxRank = -1;
     pickers.forEach(idx=>{ if(pickedByIdx[idx].rank>maxRank) maxRank=pickedByIdx[idx].rank; });
     const winners = pickers.filter(idx=>pickedByIdx[idx].rank===maxRank);
+
+    // 손님도 같은 순간에 같은 뒤집기 연출을 보도록, 공개 직전에 카드를 보냅니다.
+    NET.dealerReveal = {
+      seq: (NET.dealerRevealSeq = (NET.dealerRevealSeq||0) + 1),
+      cards: pickers.map(i=>({idx:i, card: serializeCard(pickedByIdx[i])})),
+      winners: winners.slice(),
+    };
+    publishDealerState(fanEntries, pickers, pickedByIdx, null);
 
     await revealDealerSlots(pickers, pickedByIdx, winners);
 
@@ -3067,61 +3083,120 @@ const HAND_DRAG_THRESHOLD = 6; // px of pointer movement before a press counts a
 let activeHandDrag = null;
 
 function attachHandDragReorder(handEl, handArray){
+  // 모바일 길게 누르기로 뜨는 운영체제 메뉴를 막습니다 — 그게 포인터를
+  // 취소시켜 드래그가 시작조차 못 하게 만들던 원인입니다.
+  if(!handEl.__noCtxMenu){
+    handEl.__noCtxMenu = true;
+    handEl.addEventListener('contextmenu', (e)=>{ e.preventDefault(); });
+  }
   Array.from(handEl.children).forEach(cardEl=>{
     if(!cardEl.classList.contains('card')) return; // skip face-down backs etc.
+    cardEl.setAttribute('draggable', 'false'); // 브라우저 자체 드래그 고스트 차단
     cardEl.addEventListener('pointerdown', (e)=>startHandDrag(e, cardEl, handEl, handArray));
   });
 }
 
+/* v29 — 전면 재작성. 이전 판에는 두 가지 문제가 있었습니다(사용자 제보).
+
+   ① **끌고 있는 카드가 손가락을 따라오지 않았습니다.** 살짝 들린 채 제자리에
+      머물고 주변 카드만 자리를 비켜줬기 때문에, "내가 집은 카드"와 "움직이는
+      무언가"가 따로 노는 것처럼 보였습니다.
+   ② **매 pointermove마다 재배치를 호출**했습니다. 재배치는 FLIP 보정
+      (이전 위치로 되돌렸다가 애니메이션으로 복귀)을 쓰는데, 0.18초짜리 보정이
+      끝나기 전에 다음 호출이 들어오면 **보정 중인 위치를 기준으로 또 보정**해서
+      오차가 누적됩니다. 그 결과 엉뚱한 자리로 튀어나간 카드가 생기고, PC에서
+      "카드가 하나 더 생긴 것처럼" 보였습니다. 이제 **꽂힐 자리가 실제로
+      바뀔 때만** 호출합니다.
+
+   모바일에서는 길게 눌렀을 때 뜨는 운영체제 메뉴/텍스트 선택이 포인터를
+   취소시켜 드래그가 시작조차 못 했습니다. `-webkit-touch-callout:none`과
+   contextmenu 차단, 그리고 pointerdown 즉시 포인터 캡처로 막았습니다.
+   (짧게 누르면 지금처럼 그냥 카드 선택으로 넘어갑니다.) */
+const HAND_DRAG_LIFT = 12; // 끌 때 손가락보다 이만큼 위로 띄워 카드가 가려지지 않게
+
 function startHandDrag(e, cardEl, handEl, handArray){
   if(activeHandDrag) return; // a drag is already in progress (stray extra pointer)
   if(e.pointerType==='mouse' && e.button!==0) return; // left button only
-  const state = { cardEl, handEl, handArray, pointerId:e.pointerId, startX:e.clientX, startY:e.clientY, dragging:false };
+  const r0 = cardEl.getBoundingClientRect();
+  const state = {
+    cardEl, handEl, handArray, pointerId:e.pointerId,
+    startX:e.clientX, startY:e.clientY,
+    grabX:e.clientX-r0.left, grabY:e.clientY-r0.top, // 카드의 어느 지점을 집었는지
+    tx:0, ty:0, dragging:false,
+  };
   activeHandDrag = state;
+  // 캡처는 문턱을 넘기 전에 미리 걸어둡니다 — 모바일에서 손가락이 카드 밖으로
+  // 조금만 나가도 포인터 이벤트가 끊기던 문제를 없앱니다.
+  try{ cardEl.setPointerCapture(e.pointerId); }catch(_e){}
+
+  // 카드를 손가락/커서 위치로 보냅니다. 재배치로 카드의 "원래 자리"가 바뀌어도
+  // 어긋나지 않도록, 지금 적용된 변형을 빼서 원래 자리를 역산한 뒤 다시 계산합니다.
+  function follow(ev){
+    const r = cardEl.getBoundingClientRect();
+    const naturalLeft = r.left - state.tx, naturalTop = r.top - state.ty;
+    state.tx = (ev.clientX - state.grabX) - naturalLeft;
+    state.ty = (ev.clientY - state.grabY) - naturalTop - HAND_DRAG_LIFT;
+    cardEl.style.transform = 'translate('+state.tx.toFixed(1)+'px,'+state.ty.toFixed(1)+'px)';
+  }
 
   function onMove(ev){
     if(ev.pointerId!==state.pointerId) return;
-    const dx = ev.clientX-state.startX, dy = ev.clientY-state.startY;
+    // 손패가 다시 그려져 내가 끌던 요소가 떨어져 나갔다면 즉시 포기합니다 —
+    // 떨어진 요소를 다시 끼워넣으면 카드가 한 장 늘어납니다(renderHuman 주석).
+    if(state.cancelled || cardEl.parentNode !== handEl){ cleanup(); return; }
     if(!state.dragging){
-      if(Math.abs(dx)<HAND_DRAG_THRESHOLD && Math.abs(dy)<HAND_DRAG_THRESHOLD) return;
+      if(Math.abs(ev.clientX-state.startX)<HAND_DRAG_THRESHOLD &&
+         Math.abs(ev.clientY-state.startY)<HAND_DRAG_THRESHOLD) return;
       state.dragging = true;
-      try{ cardEl.setPointerCapture(state.pointerId); }catch(_e){}
-      cardEl.style.transition = 'none';
-      cardEl.style.transform = 'scale(1.08) translateY(-10px)';
-      cardEl.style.boxShadow = '0 14px 26px rgba(0,0,0,.32)';
-      cardEl.style.zIndex = '5';
-      cardEl.style.cursor = 'grabbing';
+      cardEl.classList.add('dragging');
     }
-    ev.preventDefault();
+    if(ev.cancelable) ev.preventDefault();
+    follow(ev);
     const target = nearestHandCardAt(handEl, ev.clientX, ev.clientY, cardEl);
     if(target){
       const r = target.getBoundingClientRect();
-      const before = ev.clientX < r.left + r.width/2;
-      reorderHandWithFlip(handEl, cardEl, before ? target : target.nextSibling);
+      const beforeEl = (ev.clientX < r.left + r.width/2) ? target : target.nextSibling;
+      // 자리가 실제로 바뀔 때만 — 위 주석 ②의 오차 누적을 막는 핵심 조건.
+      if(beforeEl !== cardEl && beforeEl !== cardEl.nextSibling){
+        reorderHandWithFlip(handEl, cardEl, beforeEl);
+        follow(ev); // 원래 자리가 바뀌었으니 추적 좌표를 다시 맞춘다
+      }
     }
   }
-  function onUp(ev){
-    if(ev.pointerId!==state.pointerId) return;
+  function cleanup(){
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
-    if(state.dragging){
-      cardEl.style.transition = '';
-      cardEl.style.transform = '';
-      cardEl.style.boxShadow = '';
-      cardEl.style.zIndex = '';
-      cardEl.style.cursor = '';
-      try{ cardEl.releasePointerCapture(state.pointerId); }catch(_e){}
+    try{ cardEl.releasePointerCapture(state.pointerId); }catch(_e){}
+    cardEl.classList.remove('dragging');
+    cardEl.style.transform = '';
+    if(activeHandDrag === state) activeHandDrag = null;
+  }
+  function onUp(ev){
+    if(ev.pointerId!==state.pointerId) return;
+    const wasDragging = state.dragging && !state.cancelled && cardEl.parentNode === handEl;
+    cleanup();
+    if(wasDragging){
       syncHandArrayToDom(handEl, handArray);
       // swallow the click the browser fires right after pointerup so the
       // drop doesn't also trigger this card's own select/play action
       cardEl.addEventListener('click', suppressClickOnce, {capture:true, once:true});
     }
-    activeHandDrag = null;
   }
+  state.cleanup = cleanup;
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
+}
+
+// 바깥(renderHuman)에서 드래그를 강제로 끝낼 때. 끌던 요소를 원래 모습으로
+// 되돌리고, 이후 들어오는 pointermove가 아무 일도 하지 않게 표시해 둡니다.
+function cancelHandDrag(){
+  const st = activeHandDrag;
+  if(!st) return;
+  st.cancelled = true;
+  if(st.cleanup) st.cleanup();
+  activeHandDrag = null;
 }
 
 function suppressClickOnce(e){ e.stopImmediatePropagation(); e.preventDefault(); }
@@ -3221,7 +3296,16 @@ const BOT_ARC_MIN_WIDTH = 700;
 function renderBots(){
   const row = el('bots-row');
   row.innerHTML='';
-  const bots = G.players.map((p, idx)=>({p, idx})).filter(x=>!seatIsMine(x.idx));
+  // v29 — 자리는 **보는 사람 기준으로 회전**시킵니다. 내 다음 차례인 사람이
+  // 맨 왼쪽, 내 바로 앞 차례인 사람이 맨 오른쪽에 오도록. 예전에는 좌석
+  // 번호 순서 그대로 그려서, 손님 화면에서는 실제 진행 순서와 화면 배치가
+  // 어긋나 보였습니다(사용자 제보: 수연 화면인데 재웅이 맨 왼쪽).
+  // 혼자 플레이는 내 자리가 0이라 1,2,3…으로 예전과 같은 결과가 나옵니다.
+  const bots = [];
+  for(let k=1;k<G.numPlayers;k++){
+    const idx = (NET.mySeat + k) % G.numPlayers;
+    if(G.players[idx]) bots.push({p:G.players[idx], idx});
+  }
   const n = bots.length;
   const flatten = window.innerWidth < BOT_ARC_MIN_WIDTH;
   bots.forEach((entry, i)=>{
@@ -3473,6 +3557,9 @@ let dealingInProgress = false;
 // plain (non-selectable) hand view. Cleared the moment the reaction window
 // for that discard closes. See openTurnWindow().
 let reactionHighlightRank = null;
+// 강조된 카드를 눌렀을 때 실행할 선언(뻥/꽝/잡기). 반응 창이 열려 있는
+// 동안에만 채워지고, 닫히면 즉시 비워집니다. See renderReactionControls().
+let reactionTapChoice = null;
 
 // 땡큐카드(확장): true while the human may take the discard pile's top card
 // to finish the round outright. Drives the hand-wide glow, the chip on the
@@ -3492,6 +3579,23 @@ function renderHuman(){
   const human = G.players[NET.mySeat];
   const hand = el('human-hand');
   if(!human){ return; }
+  /* v29 — **드래그 중 다시 그리기 금지.**
+     손패를 다시 그리면 `hand.innerHTML=''`로 지금 끌고 있던 카드 요소가 DOM에서
+     떨어져 나갑니다. 그런데 드래그 쪽은 그 요소를 계속 들고 있다가 다음 번
+     재배치 때 `insertBefore`로 **도로 끼워넣기** 때문에, 새로 그려진 다섯 장
+     옆에 떨어져 나간 한 장이 더 붙어 **카드가 한 장 더 생깁니다**
+     ("드래그 하면 복사 되는 느낌으로 카드가 하나 더 생겨" — 사용자 제보.
+      터치 자동 테스트에서 5장 → 6장으로 재현했습니다).
+     봇 차례·상태 게시 때문에 renderHuman()은 드래그 중에도 수시로 불립니다.
+     손패 구성이 그대로면 다시 그릴 이유가 없으니 그냥 두고, 정말 카드가
+     바뀌었다면 드래그를 먼저 정리한 뒤 그립니다. */
+  if(activeHandDrag && activeHandDrag.handEl === hand){
+    const domIds = Array.from(hand.children)
+      .filter(c=>c.__cardRef).map(c=>c.__cardRef.id).sort().join(',');
+    const handIds = human.hand.map(c=>c && c.id).sort().join(',');
+    if(domIds === handIds){ renderHumanStatus(human); return; }
+    cancelHandDrag();
+  }
   if(dealingInProgress){
     hand.innerHTML='';
     hand.dataset.mode='';
@@ -3506,23 +3610,47 @@ function renderHuman(){
     humanHandRenderState = {mode:'plain'};
     hand.innerHTML='';
     hand.dataset.mode='';
-    human.hand.forEach(c=>{ hand.appendChild(cardFace(c, { highlight: reactionHighlightRank!=null && c.rank===reactionHighlightRank })); });
+    human.hand.forEach(c=>{
+      const hot = reactionHighlightRank!=null && c.rank===reactionHighlightRank;
+      hand.appendChild(cardFace(c, {
+        highlight: hot,
+        // 빛나는 카드는 눌러서도 선언할 수 있습니다(v29).
+        onClick: (hot && reactionTapChoice) ? ()=>{ if(reactionTapChoice) reactionTapChoice(); } : null,
+      }));
+    });
     attachHandDragReorder(hand, human.hand);
   }
 
   hand.classList.toggle('thankyou-ready', thankYouHighlight && !dealingInProgress);
+  renderHumanStatus(human);
+}
 
-  const status = el('human-status');
+// 손패 위의 칩 줄(선 / 뻥·꽝 성공 / 땡큐 가능 / 누적 점수). 손패를 다시 그리지
+// 않고 넘어가는 경우(드래그 중)에도 이 줄은 최신으로 유지해야 하므로 분리.
+function renderHumanStatus(human){
   const bongText = bongResultText(human);
-  status.innerHTML =
-    (G.dealerIndex===0? '<span class="chip gun">선</span>':'')+
+  el('human-status').innerHTML =
+    (seatIsMine(G.dealerIndex)? '<span class="chip gun">선</span>':'')+
     (bongText? '<span class="chip bong">'+bongText+'</span>':'')+
     (thankYouHighlight? '<span class="chip thanks-chip">🎁 땡큐 가능</span>':'')+
     '<span class="chip chip-score">누적 <b class="mono">'+human.score+'</b></span>';
 }
 
 function setPrompt(text){ el('prompt-text').textContent = text; publishState(); }
-function setTurnBanner(text){ el('turn-banner').innerHTML = text; publishState(); }
+/* v29 — 턴 표시는 **문구가 아니라 자리 번호**로 전달합니다.
+   예전에는 방장 화면에 그려진 글자(`▶ 다음: 나`)를 그대로 손님에게 보냈기
+   때문에, 손님 화면에도 남의 차례가 "나"로 찍혔습니다(사용자 제보).
+   이제 각자 자기 기준으로 다시 그립니다. */
+function turnBannerHTML(idx){
+  const p = G.players[idx];
+  if(!p) return '';
+  return '▶ 다음: <b>'+p.name+'</b>'+(seatIsMine(idx) ? ' (나)' : '님');
+}
+function setTurnBanner(text, seat){
+  NET.bannerSeat = (seat==null ? null : seat);
+  el('turn-banner').innerHTML = text;
+  publishState();
+}
 // The highlighted "게임 끝 선언" pill on the prompt line — separate from the
 // plain-button action column so it can't be mis-tapped next to "그냥 버리기".
 function setPromptDeclare(label, onClick){
@@ -4263,10 +4391,20 @@ function makeGate(){
 
 function renderReactionControls(elig, discardedRank, onChoose){
   reactionHighlightRank = discardedRank; // glows the matching card(s) in my own hand
+  // v29 — 버튼을 겨냥하지 않고 **빛나는 카드를 그냥 눌러도** 선언됩니다
+  // (사용자 요청). 좁은 화면에서 버튼까지 손이 가는 거리가 길고, 어차피
+  // 시선은 강조된 카드에 가 있으니까요. 뻥이 가능하면 뻥, 아니면 꽝,
+  // 그것도 아니면 잡기 — 더 강한 선언(꽝)은 버튼으로 따로 고릅니다.
+  reactionTapChoice = null;
+  if(elig && (elig.canBong || elig.canKkwang || elig.canCatch)){
+    const action = elig.canBong ? 'bong' : (elig.canKkwang ? 'kkwang' : 'catch');
+    reactionTapChoice = ()=>onChoose(action);
+  }
   setReactionButtons(elig, onChoose);
   renderHuman();
   return ()=>{
     reactionHighlightRank = null;
+    reactionTapChoice = null;
     clearReactionButtons();
     renderHuman();
   };
@@ -4378,7 +4516,7 @@ async function openTurnWindow(pendingDiscard, nextIdx){
   const nextPlayer = G.players[nextIdx];
 
   G.currentPlayerIndex = nextIdx;
-  setTurnBanner(seatIsMine(nextIdx) ? '▶ 다음: <b>나</b>' : ('▶ 다음: <b>'+nextPlayer.name+'</b>님'));
+  setTurnBanner(turnBannerHTML(nextIdx), nextIdx);
   clearReactionButtons();
   setDeckActive(false);
   setDiscardActive(false);
@@ -5393,6 +5531,9 @@ async function hostStartGame(){
   const botNames = shuffle(BOT_NAMES.slice());
   let b=0;
   while(seats.length<total){ seats.push({kind:'bot', uid:null, name: botNames[b++%botNames.length]}); }
+  // v29 — 자리를 섞습니다. 예전에는 들어온 순서가 그대로 플레이 순서라
+  // 방장이 늘 첫 자리, 봇이 늘 뒷자리였습니다(사용자 요청).
+  shuffle(seats);
   NET.seats = seats;
   NET.mySeat = seats.findIndex(s=>s.uid===myUid());
   if(NET.mySeat<0) NET.mySeat = 0;
@@ -5425,6 +5566,11 @@ function publicSnapshot(){
       hasBonged:p.hasBonged, handCount:p.hand.length
     })),
     banner: el('turn-banner').innerHTML,
+    // 턴 표시는 자리 번호로도 같이 보냅니다 — 손님이 자기 기준으로 다시
+    // 그릴 수 있게(방장 화면의 "나"가 그대로 전달되던 문제, v29).
+    bannerSeat: (NET.bannerSeat==null ? null : NET.bannerSeat),
+    // 카드를 나눠주는 중인지 — 손님도 같은 "뒷면→뒤집기" 연출을 하도록(v29).
+    dealing: !!dealingInProgress,
     prompt: el('prompt-text').textContent,
     log: logEntries.slice(-140),
     callout: NET.callout || null,
@@ -5484,6 +5630,10 @@ function publishDealerState(fanEntries, pickers, pickedByIdx, activeIdx){
     remaining: fanEntries.filter(e=>!e.taken).length,
     picked: pickers.filter(i=>pickedByIdx[i]).map(i=>i),
     activeIdx: activeIdx===undefined ? null : activeIdx,
+    // v29 — 공개된 카드도 같이 보냅니다. 예전에는 "누가 뽑았다"는 사실만
+    // 보내서, 손님 화면에서는 끝까지 카드 뒷면만 보이고 뒤집히는 연출이
+    // 아예 없었습니다(사용자 제보).
+    reveal: NET.dealerReveal || null,
   };
   publishState(true);
 }
@@ -5528,6 +5678,23 @@ let guestSeatUnsubs = [];
 
 // (Re)subscribes the two channels that are addressed to MY seat specifically.
 // Safe to call repeatedly; it only does work when the seat number changes.
+/* v29 — 손님의 손패는 방장이 보내주는데, 방장의 배열 순서는 방장 나름의
+   순서입니다. 그대로 갈아끼우면 손님이 직접 맞춰둔 정렬(드래그든 "정렬"
+   버튼이든)이 카드 한 장 뽑을 때마다 통째로 풀렸습니다(사용자 제보).
+   그래서 **카드의 내용이 아니라 순서만** 내 것을 유지합니다 — 카드 id가
+   변하지 않으므로, 이미 들고 있던 카드는 내가 둔 자리에 그대로 두고
+   새로 들어온 카드만 뒤에 붙입니다. 사라진 카드는 자연히 빠집니다. */
+function mergeHandKeepingMyOrder(current, incoming){
+  const pool = new Map();
+  (incoming||[]).forEach(c=>{ if(c && c.id!=null) pool.set(c.id, c); });
+  const out = [];
+  (current||[]).forEach(c=>{
+    if(c && c.id!=null && pool.has(c.id)){ out.push(pool.get(c.id)); pool.delete(c.id); }
+  });
+  pool.forEach(c=>out.push(c));
+  return out;
+}
+
 function ensureGuestSeatChannels(){
   if(NET.mode!=='guest' || !NET.code) return;
   if(NET.seatChannelsFor === NET.mySeat) return;
@@ -5540,7 +5707,7 @@ function ensureGuestSeatChannels(){
     if(!d || !Array.isArray(d.cards)) return;
     NET.myHand = d.cards;
     if(G.players[NET.mySeat]){
-      G.players[NET.mySeat].hand = d.cards.slice();
+      G.players[NET.mySeat].hand = mergeHandKeepingMyOrder(G.players[NET.mySeat].hand, d.cards);
       renderHuman();
     }
   });
@@ -5620,8 +5787,14 @@ function applyPublicState(st){
   } else {
     el('screen-dealer').style.display='none';
     if(el('screen-game').style.display!=='flex') enterGuestGame();
+    // 분배 중에는 내 손패도 뒷면으로 그리고, 분배가 끝나는 순간 방장과 똑같이
+    // 한 장씩 뒤집어 보여줍니다(v29 — 예전에는 손님만 카드가 그냥 펼쳐졌음).
+    const wasDealing = dealingInProgress;
+    dealingInProgress = !!st.dealing;
     renderAll();
-    setTurnBanner(st.banner||'');
+    if(wasDealing && !dealingInProgress) revealHumanHand();
+    if(st.bannerSeat!=null && G.players[st.bannerSeat]) setTurnBanner(turnBannerHTML(st.bannerSeat), st.bannerSeat);
+    else setTurnBanner(st.banner||'');
     // While I'm being asked something, my own control's prompt wins — the
     // host's prompt describes what IT is waiting for, which is me.
     if(!NET.guestReqId) setPrompt(st.prompt||'');
@@ -5651,12 +5824,22 @@ function applyPublicState(st){
 function applyGuestDealerView(dv){
   if(!dv) return;
   setDealerStatus(dv.status||'');
+  const rev = dv.reveal || null;
+  // 이미 공개 연출을 돌린 판이면 자리를 다시 그리지 않습니다 — 다시 그리면
+  // 애써 뒤집어 보여준 카드가 도로 뒷면으로 덮입니다.
+  if(rev && rev.seq === NET.dealerRevealSeen) return;
   renderDealerSlots(dv.pickers||[]);
   (dv.picked||[]).forEach(i=>markSlotPicked(i));
   // A plain fan of face-down backs; it only becomes clickable when the host
   // actually asks this guest to pick (see applyGuestRequest).
   if(!NET.guestReqId){
     renderFan(new Array(dv.remaining||0).fill(0).map(()=>({taken:false})), null);
+  }
+  if(rev && Array.isArray(rev.cards)){
+    NET.dealerRevealSeen = rev.seq;
+    const byIdx = {};
+    rev.cards.forEach(c=>{ byIdx[c.idx] = c.card; });
+    revealDealerSlots(rev.cards.map(c=>c.idx), byIdx, rev.winners||[]);
   }
 }
 
