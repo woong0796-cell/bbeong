@@ -653,6 +653,7 @@
   .action-callout.kind-kkwang{ --cal-bg:var(--accent);  --cal-ink:#FFF6E4;        --cal-ring:var(--accent); }
   .action-callout.kind-catch { --cal-bg:var(--pos);    --cal-ink:#FFF3F0;        --cal-ring:var(--pos); }
   .action-callout.kind-thanks{ --cal-bg:var(--thanks); --cal-ink:#F0FFF9;        --cal-ring:var(--thanks); }
+  .action-callout.kind-done  { --cal-bg:#C99A2E;       --cal-ink:#FFF8E6;        --cal-ring:#E6B94A; }
 
   .action-callout .callout-text{
     position:relative; display:inline-flex; align-items:center;
@@ -684,10 +685,10 @@
     14%{  opacity:.55; transform:scale(.5); }
     100%{ opacity:0;   transform:scale(1.7); }
   }
-  @media (prefers-reduced-motion: reduce){
-    .action-callout.fire .callout-text{ animation:none; opacity:1; }
-    .action-callout.fire .callout-ring{ animation:none; }
-  }
+  /* v41: 예전엔 "움직임 줄이기"(윈도우 애니메이션 효과 끔) 환경에서 도장 애니메이션을
+     끄고 opacity:1로 고정했는데, 그러면 도장이 사라지지 않고 판 가운데 계속 남았습니다
+     (사용자 제보). 도장은 "방금 무슨 일이 있었는지" 알려주는 게임 정보라 그대로
+     찍었다가 사라지게 둡니다. JS에서도 1초 뒤 fire를 확실히 걷어냅니다. */
   @media (max-width:700px), (max-height:700px){
     .action-callout .callout-text{ font-size:36px; }
     .action-callout .callout-ring{ width:120px; height:120px; }
@@ -861,6 +862,9 @@
   @media (prefers-reduced-motion: reduce){
     .discard-pop{animation:none;}
   }
+  /* v41: 버린 카드가 더미에 내려앉을 때 한 번 톡 */
+  .discard-slot .card.land-settle{animation:landSettle .28s cubic-bezier(.3,1.4,.5,1);}
+  @keyframes landSettle{0%{transform:scale(1.08);}100%{transform:scale(1);}}
 
   .pile#deck-pile{transition:opacity .2s;}
   .pile#deck-pile:not(.active){opacity:.5;}
@@ -1255,7 +1259,7 @@
      modal opens, no matter how long the content above it is. */
   .modal-actions{
     display:flex;gap:10px;margin-top:20px;
-    position:sticky;bottom:-1px;background:var(--surface);
+    position:sticky;bottom:-1px;background:var(--surface);z-index:3; /* v40: 카드 그림의 모서리 글자가 버튼 위로 비치지 않게 */
     padding-top:14px;box-shadow:0 -10px 14px -10px var(--shadow);
   }
   /* v37 — 닫기 버튼 아래로 글자가 비치던 문제(모바일 "규칙 요약" 제보).
@@ -1564,6 +1568,8 @@
   .bot.turn{border-color:var(--gold);box-shadow:0 0 0 4px rgba(242,178,27,.38), 0 8px 22px rgba(0,0,0,.25);}
   .bot .dealer-tag{color:var(--accent-text);}
   .turn-banner{box-shadow:0 4px 12px rgba(0,0,0,.18);border:0;font-weight:600;}
+  /* v41: 차례인 사람은 노란 테두리로 이미 보이므로 "▶ 다음: ~" 띠는 숨김(요소는 상태 동기화용으로 남김) */
+  #turn-banner{display:none !important;}
   .human-area{background:var(--rail);box-shadow:0 -10px 26px rgba(0,0,0,.20);position:relative;z-index:2;}
   .human-area.turn{border-top-color:var(--gold);box-shadow:inset 0 0 0 2px rgba(242,178,27,.28), 0 -10px 26px rgba(0,0,0,.20);}
   .chip{background:var(--surface-2);border-color:var(--line);font-weight:700;}
@@ -1736,6 +1742,10 @@
     background:radial-gradient(ellipse 130% 85% at 50% 22%, var(--table-1), var(--table-2) 78%);
     overflow-y:auto;min-height:0;}
   #screen-setup{flex-direction:column;align-items:center;justify-content:flex-start;gap:18px;padding:22px 16px 36px;}
+  /* v40: 세로 flex 안의 자식은 기본으로 줄어들 수 있어서(flex-shrink:1),
+     설정을 펼쳐도 카드가 화면 높이에 맞춰 눌리고(overflow:hidden이라 잘림)
+     스크롤할 내용이 안 생겼다 → 확장판 칸까지 못 내려가던 원인. */
+  #screen-setup > *, #screen-lobby > *, #screen-dealer > *{flex-shrink:0;}
   #screen-lobby > .setup-card, #screen-dealer > .dealer-card{margin:auto;}
   .title-hero{width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;text-align:center;
     color:var(--table-ink);margin-top:auto;}
@@ -1814,6 +1824,53 @@
   .tut-cards{font-size:44px;line-height:1;margin:2px 0 8px;}
   .tut-more{font-size:13px;line-height:1.6;background:var(--surface-2);border-radius:12px;padding:10px 12px;margin-top:4px;color:var(--muted);text-align:left;}
   .tut-more b{color:var(--ink);}
+  /* v40 연습 사이 점수 설명 팝업 */
+  .tut-tip .modal-sub{margin-bottom:12px;color:var(--ink);font-size:14px;line-height:1.55;}
+  .tip-list{display:flex;flex-direction:column;gap:8px;margin:0 0 12px;}
+  .tip-row{background:var(--surface-2);border-radius:12px;padding:8px 10px 10px;text-align:left;border:1px solid transparent;}
+  .tip-row.hot{border-color:color-mix(in srgb, var(--gold) 70%, transparent);background:color-mix(in srgb, var(--gold) 10%, var(--surface-2));}
+  .tip-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .tip-name{font-weight:900;font-size:14.5px;}
+  .tip-name small{font-weight:600;font-size:12px;color:var(--muted);margin-left:6px;}
+  .tip-score{font-family:var(--font-display);font-size:22px;color:var(--brand);white-space:nowrap;line-height:1;}
+  .tip-score.plus{color:#B5121B;}
+  .tip-cards{display:flex;gap:4px;flex-wrap:nowrap;}
+  .tip-cards{--tw:min(34px, calc((100vw - 124px) / 6.4));}
+  .tip-cards .card{width:var(--tw);height:calc(var(--tw) * 1.41);font-size:var(--tw);box-shadow:0 1px 3px var(--shadow);flex:none;}
+  .tut-tip .modal-actions{gap:8px;}
+  /* v41 튜토리얼 첫 안내 */
+  .tip-flow{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;text-align:left;}
+  .tip-flow-step{display:flex;align-items:flex-start;gap:8px;font-size:14px;line-height:1.5;background:var(--surface-2);border-radius:10px;padding:8px 10px;}
+  .tip-num{flex:none;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    background:var(--brand);color:#fff;font-weight:900;font-size:12.5px;margin-top:1px;}
+  .tip-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;text-align:left;}
+  @media (max-width:520px){ .tip-cols{grid-template-columns:1fr;} }
+  .tip-col{background:var(--surface-2);border-radius:12px;padding:9px 11px;font-size:13px;line-height:1.55;}
+  .tip-col p{margin:5px 0 0;}
+  .tip-col-h{font-weight:900;font-size:14px;color:var(--brand);}
+  .tip-col:last-child .tip-col-h{color:#B5121B;}
+  .tip-warn{color:#A0590A;font-weight:700;font-size:12.5px;}
+  .tip-cond{background:var(--surface-2);border-radius:12px;padding:9px 11px;font-size:13px;line-height:1.6;text-align:left;}
+  .tip-score{font-size:20px;}
+  /* v41: 게임판 ↔ 내 패 경계선 드래그로 크기 조절(PC·태블릿) */
+  .split-handle{position:absolute;left:0;right:0;top:-11px;height:22px;z-index:6;cursor:row-resize;
+    display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-user-select:none;user-select:none;}
+  .split-grip{width:64px;height:8px;border-radius:99px;background:linear-gradient(180deg,var(--gold-hi),var(--gold));opacity:.9;
+    box-shadow:0 0 0 2px var(--rail), 0 2px 5px rgba(0,0,0,.35);transition:transform .15s, opacity .15s;}
+  .split-handle:hover .split-grip, .split-handle.dragging .split-grip{opacity:1;transform:scaleX(1.35);}
+  body.split-dragging, body.split-dragging *{cursor:row-resize !important;}
+  @media (max-width:700px), (orientation:landscape) and (max-height:500px){ .split-handle{display:none;} }
+  @media (min-width:701px) and (min-height:501px), (min-width:701px) and (orientation:portrait){
+    #app.hand-sized{--hw:var(--hw-user);}
+    /* 패를 작게 줄이면 세로로 쌓인 뻥·꽝·잡기 버튼이 높이를 붙잡고 있으므로 가로 한 줄로 */
+    #app.hand-sized.hand-small #reaction-bar{flex-direction:row;}
+    #app.hand-sized.hand-small #reaction-bar button{min-width:72px;padding-left:14px;padding-right:14px;}
+    #app.hand-sized.hand-small .human-side{gap:6px;}
+  }
+  .tut-tip .tut-cards{font-size:30px;margin:0 0 4px;}
+  .tut-tip h2{font-size:22px;}
+  .tip-list{isolation:isolate;}
+  @media (max-height:760px){ .tip-row{padding:6px 10px 8px;} .tip-head{margin-bottom:4px;} .tut-tip .modal-sub{font-size:13px;margin-bottom:10px;} }
 </style>
 
 <div id="app">
@@ -1845,7 +1902,6 @@
       <button class="iconbtn menu-btn" id="btn-menu" title="메뉴" aria-label="메뉴" aria-haspopup="true" aria-expanded="false">⋯</button>
     </div>
     <div class="menu-pop" id="menu-pop" role="menu" hidden>
-      <button role="menuitem" class="menu-item" data-proxy="btn-scoreboard" data-ctx="game"><span class="mi-ico">Σ</span>점수판</button>
       <button role="menuitem" class="menu-item mi-mobile-only" data-proxy="btn-open-log-mobile" data-ctx="game"><span class="mi-ico">☰</span>진행 기록</button>
       <button role="menuitem" class="menu-item" data-act="theme"><span class="mi-ico" id="mi-theme-ico">☀️</span><span id="mi-theme-label">화면: 밝게</span></button>
       <button role="menuitem" class="menu-item" data-act="sound"><span class="mi-ico" id="mi-sound-ico">🔊</span><span id="mi-sound-label">효과음: 켜짐</span></button>
@@ -1877,10 +1933,24 @@
     <div class="modal tut-modal">
       <div class="tut-cards" aria-hidden="true">🂡 🂾 🃁</div>
       <h2>처음 오셨나요?</h2>
-      <div class="modal-sub">실제 게임 화면에서 <b>뽑기 → 버리기 → 뻥! → 잡기</b>까지 한 판의 핵심을 직접 해 보는 1분 튜토리얼이 있어요.</div>
+      <div class="modal-sub">실제 게임 화면에서 <b>① 뻥·잡기 → ② 꽝·누르기 → ③ 조합 → ④ −100</b>까지, 짧은 연습 네 판으로 핵심을 직접 해 보는 <b>5분 튜토리얼</b>이 있어요.</div>
       <div class="modal-actions">
         <button class="cta" id="btn-tut-ask-yes">튜토리얼 해보기</button>
         <button class="cta ghost" id="btn-tut-ask-no">바로 시작할게요</button>
+      </div>
+    </div>
+  </div>
+  <!-- v40 튜토리얼: 연습 사이 점수 설명 -->
+  <div class="overlay" id="overlay-tut-tip">
+    <div class="modal tut-modal tut-tip">
+      <div class="tut-cards" aria-hidden="true" id="tut-tip-icon">🃏</div>
+      <h2 id="tut-tip-title">조합 점수표</h2>
+      <div class="modal-sub" id="tut-tip-lead"></div>
+      <div class="tip-list" id="tut-tip-body"></div>
+      <div class="tut-more" id="tut-tip-foot"></div>
+      <div class="modal-actions">
+        <button class="cta" id="btn-tut-tip-ok">확인</button>
+        <button class="cta ghost" id="btn-tut-tip-alt" hidden>여기까지 할게요</button>
       </div>
     </div>
   </div>
@@ -1889,8 +1959,8 @@
     <div class="modal tut-modal">
       <div class="tut-cards" aria-hidden="true">🎉</div>
       <h2>튜토리얼 완료!</h2>
-      <div class="modal-sub">방금 한 것이 뻥게임의 기본기예요 — <b>숫자를 줄이고</b>, 남이 버린 카드에 <b>뻥</b>으로 털고, 짝을 들고 <b>잡기</b>로 끝내기.</div>
-      <div class="tut-more">한 단계 더: 내 차례에 <b>6장</b>으로 스트레이트나 같은 숫자 조합을 맞추면, 큰 <b>마이너스 점수</b>로 판을 끝낼 수도 있어요. 자세한 건 📖 룰북에서!</div>
+      <div class="modal-sub">기억할 건 하나 — <b>내 손패 합은 낮게</b>(뻥·꽝·조합), <b>남의 손패 합은 높게</b>(잡기·누르기)!</div>
+      <div class="tut-more">실전 요령: 큰 숫자는 일찍 버리고, 짝이 보이면 <b>뻥</b>, 이어지는 숫자가 모이면 <b>조합</b>, 큰 카드가 쌓이면 <b>−100</b>을 노려 보세요. 더 자세한 건 📖 룰북에서!</div>
       <div class="modal-actions">
         <button class="cta" id="btn-tut-play">바로 한 판 하기</button>
         <button class="cta ghost" id="btn-tut-home">처음 화면으로</button>
@@ -1933,7 +2003,7 @@
         <div class="hint" id="online-hint">방을 만들면 6자리 코드가 나와요. 친구들이 이 링크로 들어와 코드를 넣으면 함께 플레이합니다.</div>
       </div>
       <div class="hero-links">
-        <button type="button" class="linkbtn" id="btn-tutorial-start">처음이라면? <b>1분 튜토리얼</b> ▸</button>
+        <button type="button" class="linkbtn" id="btn-tutorial-start">처음이라면? <b>5분 튜토리얼</b> ▸</button>
         <span class="hero-dot">·</span>
         <button type="button" class="linkbtn" id="btn-rules-inline" title="규칙 요약 보기">규칙 보기</button>
       </div>
@@ -2082,6 +2152,8 @@
           </div>
         </div>
         <div class="human-area" id="human-area">
+          <div class="split-handle" id="split-handle" role="separator" aria-orientation="horizontal"
+               aria-label="게임판과 내 패 크기 조절" title="위아래로 끌어 내 패 크기 조절 · 두 번 누르면 원래대로"><span class="split-grip"></span></div>
           <div class="coach" id="coach" hidden>
             <div class="coach-face" aria-hidden="true">🃏</div>
             <div class="coach-body">
@@ -2159,6 +2231,7 @@
       <div id="round-result-lines"></div>
       <div class="modal-actions">
         <button class="cta" id="btn-next-round">다음 라운드</button>
+        <button class="cta ghost" id="btn-tut-skip" hidden>여기까지 할게요</button>
       </div>
     </div>
   </div>
@@ -2276,18 +2349,22 @@ function vibrate(pattern){
 // of the log line and discard animation that already existed. Safe to call
 // even before #action-callout exists in very early bootstrapping paths.
 // 어떤 액션인지에 따라 도장 색이 달라집니다(위 .kind-* CSS 참고).
-const CALLOUT_KIND = { '뻥!':'bong', '꽝!':'kkwang', '잡았다!':'catch', '땡큐~!':'thanks' };
+const CALLOUT_KIND = { '뻥!':'bong', '꽝!':'kkwang', '잡았다!':'catch', '땡큐~!':'thanks', '완성!':'done', '누르기!':'done' };
+// v40: 조합 완성 선언 도장은 금색, 소리는 잡기와 같은 '끝냈다' 계열을 씁니다.
+const CALLOUT_SFX = { done:'catch' };
 function showActionCallout(text){
   netCallout(text); // guests fire the same callout off the published state
   if(window.__FAST__) return; // skip the flourish entirely during automated/fast-forward play
   const host = document.getElementById('action-callout');
   const textEl = document.getElementById('action-callout-text');
   if(!host || !textEl) return;
-  host.classList.remove('fire', 'kind-bong', 'kind-kkwang', 'kind-catch', 'kind-thanks');
+  host.classList.remove('fire', 'kind-bong', 'kind-kkwang', 'kind-catch', 'kind-thanks', 'kind-done');
   void host.offsetWidth; // force reflow so re-adding the class restarts the animation
   textEl.textContent = text;
   host.classList.add('fire', 'kind-' + (CALLOUT_KIND[text] || 'bong'));
-  sfx(CALLOUT_KIND[text] || 'bong'); // v39 효과음: bong / kkwang / catch / thanks
+  clearTimeout(showActionCallout._t);
+  showActionCallout._t = setTimeout(()=>host.classList.remove('fire'), 1000);
+  { const k = CALLOUT_KIND[text] || 'bong'; sfx(CALLOUT_SFX[k] || k); } // v39 효과음: bong / kkwang / catch / thanks
 }
 
 // One-off ⚡ flash over the table, used when a 2배판 round is about to start
@@ -3682,7 +3759,7 @@ async function runDealerSelection(){
         const pos = ans && typeof ans.pos==='number' ? ans.pos : -1;
         chosenEntry = (pos>=0 && pos<rem.length) ? rem[pos] : rem[Math.floor(Math.random()*rem.length)];
       } else {
-        await sleep(window.__FAST__ ? 0 : randRange(500,1000));
+        await sleep(window.__FAST__ ? 0 : randRange(300,600)); // v41: 선 정하기도 더 빠르게
         const rem = remainingNow();
         chosenEntry = rem[Math.floor(Math.random()*rem.length)];
       }
@@ -3691,12 +3768,12 @@ async function runDealerSelection(){
       renderFan(fanEntries, null);
       markSlotPicked(idx);
       publishDealerState(fanEntries, pickers, pickedByIdx, null);
-      await sleep(window.__FAST__ ? 0 : 150);
+      await sleep(window.__FAST__ ? 0 : 100);
     }
 
     setDealerStatus('카드를 공개합니다…');
     publishDealerState(fanEntries, pickers, pickedByIdx, null);
-    await sleep(window.__FAST__ ? 0 : 450);
+    await sleep(window.__FAST__ ? 0 : 350);
 
     let maxRank = -1;
     pickers.forEach(idx=>{ if(pickedByIdx[idx].rank>maxRank) maxRank=pickedByIdx[idx].rank; });
@@ -4027,7 +4104,7 @@ function syncHandArrayToDom(handEl, handArray){
 }
 
 function renderTopbar(){
-  el('round-pill').textContent = tutorialActive ? '🎓 튜토리얼' : ('라운드 '+Math.min(G.currentRound, G.totalRounds)+'/'+G.totalRounds);
+  el('round-pill').textContent = tutorialActive ? ('🎓 연습 '+tutorialLesson+'/'+TUT_LESSONS) : ('라운드 '+Math.min(G.currentRound, G.totalRounds)+'/'+G.totalRounds);
   el('dealer-pill').textContent = '선: '+ (G.players[G.dealerIndex]? G.players[G.dealerIndex].name : '-');
   el('double-pill').style.display = G.doubleRoundActive ? 'inline-flex' : 'none';
 }
@@ -4154,9 +4231,11 @@ function getPlayerOriginEl(idx){
   return document.querySelector('.bot[data-idx="'+idx+'"]');
 }
 
-function prefersReducedMotion(){
-  return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+// v41: 카드가 어디서 어디로 갔는지는 게임 진행 정보라서, 운영체제의 "움직임 줄이기"
+// (윈도우의 '애니메이션 효과' 끄기 등) 설정과 상관없이 항상 보여줍니다. 이 설정이
+// 켜진 PC에서 뽑기·버리기 모션이 통째로 사라져 "모션이 없어졌다"는 제보가 있었습니다.
+// 반짝임·맥박 같은 장식용 반복 애니메이션만 CSS에서 계속 그 설정을 따릅니다.
+function prefersReducedMotion(){ return false; }
 
 // Briefly flies a clone of `card` from the discarding player's panel to the
 // discard pile; the pile's own visible top card only advances to this card
@@ -4181,15 +4260,20 @@ function animateDiscardFly(originIdx, card, opts){
   // Starts big and fully visible right away — the card is "lifted" large
   // off the hand — then shrinks down to its resting size as it travels, so
   // it settles into the pile instead of ballooning up on arrival.
+  // v41: ① 손에서 카드를 살짝 들어 올리며 커지고(어떤 카드인지 눈에 띄게)
+  //      ② 부드럽게 버림더미로 날아가 원래 크기로 내려앉은 뒤
+  //      ③ 더미 위에서 한 번 "톡" 하고 자리를 잡습니다.
+  // 사람(아래)의 카드는 위로, 봇(위)의 카드는 아래로 들어 올려 테이블 쪽으로 향하게 합니다.
+  const fromBottom = originEl.getBoundingClientRect().top > slot.getBoundingClientRect().top;
   flyClone(cardFace(card), originEl, slot, {
-    tagClass: opts.tagClass, startScale: 1.35, endScale: 1,
-    startOpacity: 1, durationMs: 420, fadeOut: false,
+    tagClass: opts.tagClass, startScale: 0.92, peakScale: 1.32, peakAt: 0.3,
+    lift: fromBottom ? 22 : -14, endScale: 1,
+    startOpacity: 0.2, durationMs: 680, fadeOut: false,
     onLand: ()=>{
       discardRevealedCount = Math.min(discardRevealedCount+1, G.discard.length);
-      // No landing-arrival flourish here on purpose — the "emphasis" already
-      // happened during the flight itself, so the card just settles onto the
-      // pile quietly instead of popping again once it lands.
       renderCenter();
+      const top = el('discard-slot') && el('discard-slot').querySelector('.card');
+      if(top){ top.classList.remove('land-settle'); void top.offsetWidth; top.classList.add('land-settle'); }
     }
   });
 }
@@ -4229,6 +4313,11 @@ function flyClone(inner, fromEl, toEl, opts){
   const flying = document.createElement('div');
   flying.className = 'flying-card' + (opts.tagClass ? ' '+opts.tagClass : '');
   flying.appendChild(inner);
+  // v41 버그 수정: 카드 크기 변수(--pw)는 #app에 정의되는데 날아가는 카드는 body에
+  // 붙으므로 변수를 못 읽어 크기가 0이 됐습니다 → v39부터 뽑기·버리기 모션이 거의
+  // 안 보이던 원인. #app에서 계산된 값을 그대로 넘겨줍니다.
+  try{ const app = el('app'); if(app){ const cs = getComputedStyle(app);
+    ['--pw','--hw'].forEach(v=>{ const val = cs.getPropertyValue(v); if(val) flying.style.setProperty(v, val.trim()); }); } }catch(_e){}
   document.body.appendChild(flying);
   const fRect = flying.getBoundingClientRect();
   const startLeft = fromRect.left + fromRect.width/2 - fRect.width/2;
@@ -4239,6 +4328,34 @@ function flyClone(inner, fromEl, toEl, opts){
   const endScale   = opts.endScale==null ? 1 : opts.endScale;
   flying.style.left = startLeft+'px';
   flying.style.top  = startTop+'px';
+  // v41: 여러 단계 움직임(들어 올림 → 이동)은 Web Animations로. 없는 옛 브라우저는 아래 전환 방식.
+  if(typeof flying.animate === 'function'){
+    const o0 = opts.startOpacity==null ? 1 : opts.startOpacity;
+    const kf = [{offset:0, transform:'translate3d(0,0,0) scale('+startScale+')', opacity:o0,
+                 easing:'cubic-bezier(.25,.8,.35,1)'}];
+    if(opts.peakScale){
+      const lift = opts.lift || 0;
+      kf.push({offset:opts.peakAt || 0.3, transform:'translate3d(0,'+(-lift)+'px,0) scale('+opts.peakScale+')', opacity:1,
+               easing:'cubic-bezier(.55,.05,.3,1)'});
+    } else {
+      kf.push({offset:0.2, transform:'translate3d('+(dx*0.12).toFixed(1)+'px,'+(dy*0.12).toFixed(1)+'px,0) scale('+startScale+')', opacity:1,
+               easing:'cubic-bezier(.4,0,.25,1)'});
+    }
+    kf.push({offset:1, transform:'translate3d('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px,0) scale('+endScale+')', opacity:1});
+    let doneW = false;
+    const anim = flying.animate(kf, {duration:dur, fill:'forwards'});
+    const finishW = ()=>{
+      if(doneW) return; doneW = true; clearTimeout(safetyW);
+      if(opts.fadeOut){
+        flying.animate([{opacity:1},{opacity:0}], {duration:150, fill:'forwards'});
+        setTimeout(()=>flying.remove(), 160);
+      } else flying.remove();
+      if(opts.onLand) opts.onLand();
+    };
+    anim.onfinish = finishW;
+    const safetyW = setTimeout(finishW, dur + 150);
+    return;
+  }
   flying.style.opacity = String(opts.startOpacity==null ? 1 : opts.startOpacity);
   flying.style.transform = 'translate3d(0,0,0) scale('+startScale+')';
   flying.style.willChange = 'transform, opacity';
@@ -4280,9 +4397,9 @@ function flyClone(inner, fromEl, toEl, opts){
 // can await it before moving on.
 function animateDiscardFlyGroup(originIdx, matchCards, attachCard){
   if(window.__FAST__ || prefersReducedMotion()) return Promise.resolve();
-  const stagger = 100;
-  const flightMs = 420;
-  const gapBeforeAttach = 260;
+  const stagger = 110;
+  const flightMs = 680;
+  const gapBeforeAttach = 300;
   matchCards.forEach((c,i)=>{
     setTimeout(()=> animateDiscardFly(originIdx, c, {tagClass:'tag-match'}), i*stagger);
   });
@@ -4303,8 +4420,12 @@ function animateDrawFly(idx){
   if(!originEl || !targetEl) return;
   const back = document.createElement('div');
   back.className = 'cardback';
-  flyClone(back, originEl, targetEl, {
-    startScale:0.85, endScale:0.9, startOpacity:0, durationMs:380, fadeOut:true
+  flyClone(back, originEl, targetEl, dealingInProgress ? {
+    startScale:0.85, endScale:0.9, startOpacity:0, durationMs:340, fadeOut:true
+  } : {
+    // v41: 나눠줄 때보다 천천히 — 덱에서 한 장 집어 올려(살짝 커짐) 뽑은 사람에게 건너감
+    startScale:0.9, peakScale:1.08, peakAt:0.22, lift:10, endScale:0.88,
+    startOpacity:0.3, durationMs:560, fadeOut:true
   });
 }
 
@@ -4319,8 +4440,8 @@ function animateThankYouFly(idx){
   if(!originEl || !targetEl) return;
   const card = G.players[idx].hand[G.players[idx].hand.length-1];
   flyClone(cardFace(card), originEl, targetEl, {
-    tagClass:'tag-attach', startScale:0.85, endScale:0.9,
-    startOpacity:0, durationMs:380, fadeOut:true
+    tagClass:'tag-attach', startScale:0.9, peakScale:1.15, peakAt:0.25, lift:10, endScale:0.9,
+    startOpacity:0.3, durationMs:600, fadeOut:true
   });
 }
 
@@ -5214,6 +5335,7 @@ async function resolvePress(idx){
 
   if(caughtBy===null){
     log(p.name+'님이 "누르기" 성공! (합 '+mySum+')', p.isBot?'sys':'you win');
+    showActionCallout('누르기!');
     await sleep(300);
     const scores = G.players.map((x,i)=>{
       if(i===idx) return -(10-mySum);
@@ -5223,6 +5345,7 @@ async function resolvePress(idx){
   } else {
     const catcherIdx = G.players.indexOf(caughtBy);
     log(p.name+'님이 "누르기" 시도했지만 '+caughtBy.name+'님에게 잡혔습니다.', p.isBot?'sys':'you lose');
+    showActionCallout('잡았다!');
     await sleep(300);
     const scores = G.players.map((x,i)=>{
       if(i===idx) return mySum+50;
@@ -5521,7 +5644,7 @@ async function openTurnWindow(pendingDiscard, nextIdx){
     }, window.__FAST__?0:gateDelay);
     timers.push(t);
   } else {
-    const botDelay = window.__FAST__ ? 0 : (gateDelay + 500);
+    const botDelay = window.__FAST__ ? 0 : (gateDelay + 400);
     const t = setTimeout(()=>{
       if(gate.settled) return;
       if(thankYouEligible){ gate.resolve({type:'thankyou'}); }
@@ -5561,7 +5684,7 @@ async function performDrawSequence(idx){
   // via the fly animation and the deck count ticking down.
   renderAll();
   animateDrawFly(idx);
-  await sleep(p.isBot ? randRange(3000,5000) : 0);
+  await sleep(p.isBot ? randRange(2500,4000) : 0); // v41: 1.2배 빠르게(예전 3000~5000)
 
   // check auto-end conditions
   if(p.state==='normal' && p.hand.length===6){
@@ -5589,6 +5712,7 @@ async function performDrawSequence(idx){
         if(combo) labelParts.push(combo.label);
         if(hundred) labelParts.push('-100 조건');
         log(p.name+'님이 "게임 끝" 선언! ('+labelParts.join(' + ')+')', p.isBot?'sys':'you win');
+        showActionCallout('완성!');
         await sleep(300);
         const scores = G.players.map((x,i)=> i===idx ? finisherScore : adjustedSum(x.hand));
         endRoundWith(scores, p.name+'님이 '+labelParts.join(' + ')+'(으)로 판을 끝냈습니다.');
@@ -5608,6 +5732,7 @@ async function performDrawSequence(idx){
     }
     if(declare){
       log(p.name+'님이 같은 숫자 3장으로 "게임 끝" 선언! (0점)', p.isBot?'sys':'you win');
+      showActionCallout('완성!');
       await sleep(300);
       const scores = G.players.map((x,i)=> i===idx ? 0 : adjustedSum(x.hand));
       endRoundWith(scores, p.name+'님이 동일 숫자 3장(0점)으로 판을 끝냈습니다.');
@@ -5629,7 +5754,7 @@ async function performDrawSequence(idx){
                || botChooseDiscard(p.hand, p.hasBonged, p); // timed out → play a sensible card for them
   } else {
     discardCard = botChooseDiscard(p.hand, p.hasBonged, p);
-    await sleep(400);
+    await sleep(330);
   }
   p.hand.splice(p.hand.indexOf(discardCard),1);
   G.discard.push({card:discardCard, by:idx});
@@ -7183,11 +7308,71 @@ function refreshSoundMenu(){
 })();
 
 /* ---- 화면을 돌리거나 창 크기를 바꾸면 봇 자리 배치를 다시 ---- */
+/* v41 — 게임판과 내 패 사이 경계(노란 선)를 위아래로 끌어 내 패 크기를 정합니다.
+   위로 끌면 카드가 커지고(게임판이 줄고), 아래로 끌면 작아집니다. 두 번 누르면 원래대로.
+   값은 이 기기에 저장되고, 휴대폰 배치에서는 쓰지 않습니다(화면 폭에 맞춰 자동). */
+const SPLIT_KEY = 'bbeong-hand-size';
+var splitClamp = null;
+(function setupSplit(){
+  const app = el('app'), handle = el('split-handle');
+  if(!app || !handle) return;
+  const fullRowHand = ()=>window.matchMedia('(min-width:701px) and (orientation:portrait)').matches;
+  const limits = ()=>{
+    const ha = el('human-area');
+    const w = (ha && ha.clientWidth) || window.innerWidth;
+    const byW = (w - (fullRowHand() ? 50 : 300)) / 6.9;
+    const byH = (window.innerHeight * 0.6) / 1.55;
+    return {min:46, max:Math.max(56, Math.min(170, byW, byH))};
+  };
+  const apply = (px)=>{
+    if(!px){ app.classList.remove('hand-sized','hand-small'); app.style.removeProperty('--hw-user'); return; }
+    const L = limits();
+    px = Math.round(Math.max(L.min, Math.min(L.max, px)));
+    app.style.setProperty('--hw-user', px+'px');
+    app.classList.add('hand-sized');
+    app.classList.toggle('hand-small', px < 118 && !fullRowHand());
+    return px;
+  };
+  splitClamp = ()=>{ let v=null; try{ v = parseFloat(localStorage.getItem(SPLIT_KEY)); }catch(_e){} if(v) apply(v); };
+  splitClamp();
+  const curHw = ()=>{
+    const c = el('human-hand') && el('human-hand').querySelector('.card, .cardback');
+    if(c) return c.getBoundingClientRect().width;
+    return parseFloat(getComputedStyle(app).getPropertyValue('--hw')) || 80;
+  };
+  let startY = 0, startHw = 0, dragging = false, last = null;
+  handle.addEventListener('pointerdown', (e)=>{
+    if(e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    dragging = true; startY = e.clientY; startHw = curHw(); last = null;
+    try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+    handle.classList.add('dragging'); document.body.classList.add('split-dragging');
+  });
+  handle.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    last = apply(startHw - (e.clientY - startY) / 1.5);
+  });
+  const end = ()=>{
+    if(!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging'); document.body.classList.remove('split-dragging');
+    if(last){ try{ localStorage.setItem(SPLIT_KEY, String(last)); }catch(_e){} }
+    if(el('screen-game').style.display === 'flex' && G.players && G.players.length) renderBots();
+  };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+  handle.addEventListener('dblclick', ()=>{
+    apply(null);
+    try{ localStorage.removeItem(SPLIT_KEY); }catch(_e){}
+  });
+})();
+
 (function setupResize(){
   let t = null;
   const redo = ()=>{
     clearTimeout(t);
     t = setTimeout(()=>{
+      if(splitClamp) splitClamp();
       if(el('screen-game').style.display === 'flex' && G.players && G.players.length) renderBots();
     }, 120);
   };
@@ -7211,6 +7396,7 @@ function refreshSoundMenu(){
    ===================================================================== */
 const TUT_KEY = 'bbeong-tutorial-asked';
 var tutorialActive = false; // var: renderAll()이 이보다 먼저 불려도 안전하게(TDZ 방지)
+var tutorialLesson = 1;   // v40: 연습 1~3
 var coachRingEl = null;
 
 function endTutorialUI(){
@@ -7218,6 +7404,8 @@ function endTutorialUI(){
   const c = el('coach'); if(c) c.hidden = true;
   if(coachRingEl){ coachRingEl.classList.remove('coach-ring'); coachRingEl = null; }
   document.body.classList.remove('tutorial-on');
+  const sk = el('btn-tut-skip'); if(sk){ sk.hidden = true; sk.onclick = null; }
+  const tip = el('overlay-tut-tip'); if(tip) tip.classList.remove('show');
 }
 function coachRing(target){
   if(coachRingEl) coachRingEl.classList.remove('coach-ring');
@@ -7247,43 +7435,49 @@ async function startTutorial(){
   const myEpoch = gameEpoch;
   const alive = ()=>{ if(gameEpoch !== myEpoch || !tutorialActive) throw 'tutorial-abort'; };
   tutorialActive = true;
+  tutorialLesson = 1;
   document.body.classList.add('tutorial-on');
 
-  // ---- 판 차리기 ----
+  // ---- 공통 도구 ----
   let uid = 0;
   const C = (rank, suit)=>({id:'tut'+(uid++), rank, suit, isJoker:false});
+  const myName = (el('input-name').value.trim() || '나');
   NET.mySeat = 0;
-  G.numPlayers = 4; G.currentRound = 1; G.totalRounds = 1;
+  G.numPlayers = 4; G.totalRounds = TUT_LESSONS;
   G.expansions = {joker:false, thankyou:false, double:false};
   G.doubleRoundActive = false; G.doubleUsedBy = new Set();
-  G.roundHistory = []; G.dealerIndex = 0; G.currentPlayerIndex = 0;
+  G.roundHistory = []; G.dealerIndex = 0;
   G.reshuffledThisRound = false;
   G.players = [
-    {id:0, name: (el('input-name').value.trim() || '나'), isBot:false, hand:[C(7,'♥'),C(7,'♠'),C(4,'♦'),C(4,'♣'),C(13,'♠')], score:0, state:'normal', hasBonged:false},
-    {id:1, name:'민수', isBot:true, hand:[C(2,'♠'),C(5,'♦'),C(9,'♥'),C(11,'♣'),C(12,'♦')], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
-    {id:2, name:'지은', isBot:true, hand:[C(3,'♥'),C(7,'♦'),C(8,'♣'),C(10,'♠'),C(1,'♣')], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
-    {id:3, name:'현우', isBot:true, hand:[C(6,'♠'),C(6,'♥'),C(9,'♣'),C(11,'♦'),C(13,'♥')], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
+    {id:0, name:myName, isBot:false, hand:[], score:0, state:'normal', hasBonged:false},
+    {id:1, name:'민수', isBot:true, hand:[], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
+    {id:2, name:'지은', isBot:true, hand:[], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
+    {id:3, name:'현우', isBot:true, hand:[], score:0, state:'normal', hasBonged:false, persona:BOT_PERSONAS[0]},
   ];
-  // 덱은 뒤에서부터 뽑힘: 나 9♦ → 민수 10♣ → 지은 6♣ → 민수 4♥
-  const filler = [C(2,'♥'),C(3,'♠'),C(5,'♣'),C(8,'♥'),C(12,'♠'),C(1,'♦'),C(10,'♥'),C(6,'♦'),C(3,'♣'),C(11,'♥'),
-                  C(2,'♦'),C(8,'♦'),C(5,'♠'),C(12,'♣'),C(9,'♠'),C(1,'♥'),C(13,'♦'),C(10,'♦'),C(5,'♥'),C(3,'♦')];
-  G.deck = filler.concat([C(4,'♥'), C(6,'♣'), C(10,'♣'), C(9,'♦')]);
-  G.discard = []; discardRevealedCount = 0;
-  logEntries = []; logExpandedRounds = new Set();
+  const me = G.players[0];
+  const filler = ()=>[C(2,'♥'),C(3,'♠'),C(5,'♣'),C(8,'♥'),C(12,'♠'),C(1,'♦'),C(10,'♥'),C(6,'♦'),C(3,'♣'),C(11,'♥'),
+                      C(2,'♦'),C(8,'♦'),C(5,'♠'),C(12,'♣'),C(9,'♠'),C(1,'♥'),C(13,'♦'),C(10,'♦'),C(5,'♥'),C(3,'♦')];
 
   el('screen-setup').style.display='none';
   el('screen-lobby').style.display='none';
   el('topbar-meta-setup').style.display='none';
   el('topbar-meta').style.display='flex';
   el('screen-game').style.display='flex';
-  el('round-pill').textContent = '🎓 튜토리얼';
-  el('dealer-pill').textContent = '선: '+G.players[0].name;
-  setActions([]); clearReactionButtons(); clearPromptDeclare();
-  setTurnBanner(turnBannerHTML(0), 0);
-  setPrompt('');
-  renderAll();
+  el('dealer-pill').textContent = '선: '+myName;
 
-  const me = G.players[0];
+  // 연습 한 판 차리기. drawOrder = 덱에서 뽑힐 순서(앞에서부터).
+  const setTable = (lesson, hands, drawOrder)=>{
+    tutorialLesson = lesson;
+    G.currentRound = lesson; G.currentPlayerIndex = 0;
+    G.players.forEach((p,i)=>{ p.hand = hands[i]; p.state = 'normal'; p.hasBonged = false; });
+    G.deck = filler().concat(drawOrder.slice().reverse()); // 뒤에서부터 pop
+    G.discard = []; discardRevealedCount = 0;
+    logEntries = []; logExpandedRounds = new Set();
+    setActions([]); clearReactionButtons(); clearPromptDeclare();
+    setTurnBanner(turnBannerHTML(0), 0);
+    setPrompt('');
+    renderAll();
+  };
   const draw = (idx)=>{ const c = G.deck.pop(); G.players[idx].hand.push(c); renderAll(); animateDrawFly(idx); return c; };
   const discard = (idx, card)=>{
     const p = G.players[idx];
@@ -7295,49 +7489,108 @@ async function startTutorial(){
   };
   const turn = (idx)=>{ G.currentPlayerIndex = idx; setTurnBanner(turnBannerHTML(idx), idx); renderAll(); };
   const pause = async (ms)=>{ await sleep(ms); alive(); };
-
-  try{
-    await coach('튜토리얼', '<b>뻥게임</b>을 1분 만에 익혀 볼게요. 화면은 실제 게임과 똑같아요 — 시키는 대로만 눌러 보세요!', {button:'시작!'});
-    alive();
-    await coach('1 / 6 · 내 패', '아래가 <b>내 패 5장</b>이에요. 판이 끝날 때 손에 남은 숫자만큼 점수가 붙어요. <b>점수는 낮을수록 좋아요!</b>', {button:'다음', target: el('human-hand')});
-    alive();
-
-    // ① 뽑기
-    coach('2 / 6 · 뽑기', '내 차례예요. 가운데 <b>덱</b>을 눌러 한 장 뽑아 보세요.', {target: el('deck-pile')});
+  const myDraw = async (stepLabel, html)=>{
+    turn(0);
+    coach(stepLabel, html, {target: el('deck-pile')});
     setPrompt('덱을 눌러 카드를 뽑으세요.');
     await new Promise(res=>setDeckActive(true, ()=>{ setDeckActive(false); res(); }));
     alive();
-    const drawn = draw(0);
+    const c = draw(0);
     await pause(450);
-
-    // ② 버리기
-    const king = me.hand.find(c=>c.rank===13);
-    coach('3 / 6 · 버리기', '6장이 됐어요. 조합이 안 되면 한 장을 버려요. 숫자가 가장 큰 <b>K</b>를 버려 볼까요?', {target: el('human-hand')});
-    await new Promise(res=>renderCardPickControls(me.hand, 'K를 눌러 버리세요.', c=>c===king, res));
+    return c;
+  };
+  const pickDiscard = async (stepLabel, html, card, promptText)=>{
+    coach(stepLabel, html, {target: el('human-hand')});
+    await new Promise(res=>renderCardPickControls(me.hand, promptText, c=>c===card, res));
     alive();
-    discard(0, king);
+    discard(0, card);
     await pause(500);
-
-    // ③ 다른 사람들 차례
+  };
+  // 봇들이 한 바퀴: 각자 정해진 카드를 버림(뽑은 카드를 그대로 버리는 게 기본)
+  const botsRound = async (who, fast)=>{
     coach('', '다른 사람들도 차례대로 <b>한 장 뽑고 한 장 버려요</b>…', {});
+    setPrompt('다른 플레이어의 차례입니다…');
+    for(const idx of who){
+      turn(idx); await pause(fast ? 420 : 650);
+      const got = draw(idx); await pause(fast ? 420 : 600);
+      discard(idx, got); await pause(fast ? 500 : 700);
+    }
+  };
+  const declare = async (stepLabel, html, msg)=>{
+    coach(stepLabel, html, {target: el('prompt-declare-btn')});
+    await new Promise(res=>{ renderDeclareControls(msg, '게임 끝 선언', '그냥 버리기', me.hand, ()=>res()); setActions([]); });
+    alive();
+    showActionCallout('완성!');
+    vibrate([30,50,80]);
+    coachRing(null);
+    await pause(900);
+  };
+  // 라운드 결과 창 → [다음] 대기. skip=true면 "여기까지 할게요"도 보여줌.
+  const resultThen = async (reason, scores, coachHtml, nextLabel, skip)=>{
+    pushLog(reason, reason, 'you win');
+    scores.forEach((sc,i)=>{ G.players[i].score += sc; });
+    renderAll();
+    coach('결과', coachHtml, {});
+    showRoundResult({reason, scores});
+    const nb = el('btn-next-round'), sk = el('btn-tut-skip');
+    nb.disabled = false; nb.textContent = nextLabel;
+    sk.hidden = !skip;
+    const choice = await new Promise(res=>{
+      nb.onclick = ()=>{ res('next'); };
+      sk.onclick = ()=>{ res('skip'); };
+    });
+    nb.onclick = null; sk.onclick = null; sk.hidden = true;
+    toggleOverlay('overlay-round', false);
+    alive();
+    return choice;
+  };
+  const finish = ()=>{ endTutorialUI(); toggleOverlay('overlay-tutorial-end', true); };
+
+  try{
+    /* ═════════ 시작: 게임 방법 한눈에 ═════════ */
+    setTable(1, [
+      [C(7,'♥'),C(7,'♠'),C(4,'♦'),C(4,'♣'),C(13,'♠')],
+      [C(2,'♠'),C(5,'♦'),C(9,'♥'),C(11,'♣'),C(12,'♦')],
+      [C(3,'♥'),C(7,'♦'),C(8,'♣'),C(10,'♠'),C(1,'♣')],
+      [C(6,'♠'),C(6,'♥'),C(9,'♣'),C(11,'♦'),C(13,'♥')],
+    ], [C(9,'♦'), C(10,'♣'), C(6,'♣'), C(4,'♥')]);
+    coach('튜토리얼', '<b>뻥게임</b>을 짧은 연습 네 판으로 익혀 볼게요. 먼저 게임 방법부터!', {});
+    await pause(300);
+    await tutTip(TUT_TIP_INTRO, '연습 시작!');
+    alive();
+
+    /* ═════════ 연습 1 · 기본 흐름 + 뻥 + 잡기 ═════════
+       ① 덱 뽑기 → ② K 버리기 → ③ 민수·지은 → ④ 지은의 7에 뻥(+9) → ⑤ 4 두 장 = 총
+       → ⑥ 민수가 4를 버림 → 잡기 → 결과(나 0점, 민수 +30 벌점) */
+    await coach('연습 1 · 내 패', '아래가 <b>내 패 5장</b>이에요. 판이 끝날 때 손에 남은 숫자 합이 내 점수가 돼요. <b>점수는 낮을수록 좋아요!</b>', {button:'다음', target: el('human-hand')});
+    alive();
+
+    await myDraw('연습 1 · ① 뽑기', '내 차례엔 언제나 <b>덱에서 1장 뽑기</b>부터! 가운데 <b>덱</b>을 눌러 보세요.');
+    const king = me.hand.find(c=>c.rank===13);
+    await pickDiscard('연습 1 · ② 버리기',
+      '6장이 됐어요. 6장이 <b>조합</b>이면 “게임 끝”을 선언하고, 아니면 <b>1장을 버려요</b>. 남는 숫자가 점수가 되니 가장 큰 <b>K</b>를 버려 볼까요?',
+      king, 'K를 눌러 버리세요.');
+
+    coach('', '다른 사람들도 차례대로 <b>1장 뽑고 1장 버려요</b>…', {});
     setPrompt('다른 플레이어의 차례입니다…');
     turn(1); await pause(700);
     draw(1); await pause(650);
-    discard(1, G.players[1].hand.find(c=>c.rank===5)); await pause(800);
+    discard(1, G.players[1].hand.find(c=>c.rank===5)); await pause(900);
     turn(2); await pause(600);
     draw(2); await pause(650);
-    const seven = G.players[2].hand.find(c=>c.rank===7);
-    discard(2, seven); await pause(700);
+    discard(2, G.players[2].hand.find(c=>c.rank===7)); await pause(800);
 
-    // ④ 뻥!
+    // 뻥! — 타이밍 설명
     setPrompt('다른 플레이어가 반응할 수 있는 시간입니다…');
-    coach('4 / 6 · 뻥!', '지은님이 <b>7</b>을 버렸어요! 내 손에 7이 <b>두 장</b> — <b>“뻥!”</b>을 외칠 기회예요. 빛나는 카드나 <b>[뻥]</b> 버튼을 누르세요.', {target: el('btn-react-bong')});
+    coach('연습 1 · 뻥!',
+      '지은님이 <b>7</b>을 버렸어요! 누가 카드를 버린 직후, <b>다음 사람(현우님)이 덱에서 뽑기 전까지</b>가 뻥·꽝 타이밍이에요. 내 손에 7이 <b>두 장</b> — 빛나는 카드나 <b>[뻥]</b>을 누르세요!',
+      {target: el('btn-react-bong')});
     await new Promise(res=>{
       const done = renderReactionControls({canBong:true, canKkwang:false, canCatch:false}, 7, ()=>{ done(); res(); });
     });
     alive();
     const nine = me.hand.find(c=>c.rank===9);
-    coach('5 / 6 · 같이 버리기', '뻥은 같은 숫자 2장에 <b>아무 카드 1장</b>을 얹어 함께 버리는 거예요. 큰 <b>9</b>를 같이 털어 버려요!', {target: el('human-hand')});
+    coach('연습 1 · 같이 버리기', '뻥은 같은 숫자 <b>2장</b>에 <b>아무 카드 1장</b>을 얹어 함께 버리는 거예요. 큰 <b>9</b>를 같이 털어 버려요!', {target: el('human-hand')});
     await new Promise(res=>renderCardPickControls(me.hand, '함께 버릴 카드: 9를 누르세요.', c=>c===nine, res));
     alive();
     const sevens = me.hand.filter(c=>c.rank===7);
@@ -7351,16 +7604,19 @@ async function startTutorial(){
     await animateDiscardFlyGroup(0, sevens, nine);
     setPrompt('뻥 성공! 손에 4 두 장이 남았어요.');
     await pause(300);
-    await coach('5 / 6 · 총 장전', '손에 <b>4 두 장</b>만 남았어요. 이걸 <b>“총”</b>이라고 해요 — 이제 누구든 <b>4</b>를 버리면 바로 <b>잡을</b> 수 있어요. (뻥을 치면 내 다음 사람에게 차례가 넘어가요.)', {button:'다음', target: el('human-hand')});
+    await coach('연습 1 · 총 장전',
+      '손패 합이 <b>8</b>로 확 줄었죠? 뻥·꽝은 <b>내 점수를 낮추는</b> 방법이에요. 그리고 같은 숫자 <b>4 두 장</b>이 남은 이 상태를 <b>“총”</b>이라 해요 — 누가 4를 버리면 바로 <b>잡을</b> 수 있어요. (뻥을 치면 차례는 내 다음 사람에게 넘어가요.)',
+      {button:'다음', target: el('human-hand')});
     alive();
 
-    // ⑤ 민수가 4를 버림 → 잡기
     coach('', '민수님 차례…', {});
     setPrompt('다른 플레이어의 차례입니다…');
     turn(1); await pause(700);
     const four = draw(1); await pause(700);
-    discard(1, four); await pause(650);
-    coach('6 / 6 · 잡기!', '민수님이 <b>4</b>를 버렸어요! 지금이에요 — <b>[잡기]</b>를 누르세요!', {target: el('btn-react-catch')});
+    discard(1, four); await pause(800);
+    coach('연습 1 · 잡기!',
+      '민수님이 <b>4</b>를 버렸어요! 내 손에 4가 <b>정확히 2장</b> — 내 차례가 아니어도 <b>[잡기]</b>로 판을 바로 끝낼 수 있어요. 누르세요!',
+      {target: el('btn-react-catch')});
     await new Promise(res=>{
       const done = renderReactionControls({canBong:false, canKkwang:false, canCatch:true}, 4, ()=>{ done(); res(); });
     });
@@ -7370,24 +7626,225 @@ async function startTutorial(){
     coachRing(null);
     await pause(900);
 
-    // ⑥ 라운드 결과 — 실제 결과 창 그대로
-    const scores = G.players.map((p,i)=> i===0 ? 0 : (i===1 ? adjustedSum(p.hand)+30 : adjustedSum(p.hand)));
-    const reason = me.name+'님이 민수님을 [4♥]로 잡아 판을 끝냈습니다.';
-    pushLog(reason, reason, 'you win');
-    scores.forEach((sc,i)=>{ G.players[i].score += sc; });
-    renderAll();
-    coach('결과', '<b>잡기 성공!</b> 나는 <b>0점</b>, 4를 버린 민수님은 손패 합에 <b>+30점 벌점</b>까지 받아요.', {});
-    showRoundResult({reason, scores});
-    const nb = el('btn-next-round');
-    nb.disabled = false; nb.textContent = '튜토리얼 마치기';
-    await new Promise(res=>{ nb.onclick = ()=>{ toggleOverlay('overlay-round', false); res(); }; });
+    const r1 = await resultThen(me.name+'님이 민수님을 [4♥]로 잡아 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? 0 : (i===1 ? adjustedSum(p.hand)+30 : adjustedSum(p.hand))),
+      '<b>잡기 성공!</b> 나는 <b>0점</b>, 4를 버린 민수님은 손패 합에 <b>+30점 벌점</b> — 이게 <b>남의 점수를 높이는</b> 첫 번째 방법이에요.',
+      '다음 연습 ▸', true);
+    if(r1 === 'skip'){ finish(); return; }
+
+    /* ═════════ 연습 2 · 꽝 + 누르기 ═════════
+       지은이 이미 뻥(손 2장) → 현우가 5를 버림 → 5 세 장으로 꽝(+Q) → 손에 A 한 장
+       → 한 바퀴 → 내 차례에 누르기(합 1 < 모두) → −9 */
+    setTable(2, [
+      [C(5,'♠'),C(5,'♥'),C(5,'♦'),C(1,'♣'),C(12,'♥')],
+      [C(3,'♠'),C(6,'♥'),C(7,'♣'),C(10,'♦'),C(11,'♠')],
+      [C(8,'♠'),C(13,'♦')],
+      [C(2,'♥'),C(4,'♦'),C(9,'♣'),C(12,'♠'),C(13,'♣')],
+    ], [C(5,'♣'), C(9,'♥'), C(3,'♦'), C(6,'♣')]);
+    const jieun = G.players[2];
+    jieun.state = 'gun2'; jieun.hasBonged = true;
+    pushLog('지은님이 "뻥!"을 선언했습니다 — 손 2장 남음.', '지은님이 <b>J♣ J♠</b>로 "뻥!" (같이 버림: <b>9♦</b>) — 손 2장 남음.', 'sys', true);
+    turn(3); renderAll();
+    await pause(500);
+    await coach('연습 2 · 꽝과 누르기',
+      '이번 판엔 이미 <b>지은님이 뻥</b>을 쳐서 손이 2장이에요. 그리고 내 패엔 <b>5가 세 장</b>! 지금은 현우님 차례예요.',
+      {button:'다음', target: el('human-hand')});
     alive();
-    endTutorialUI();
-    toggleOverlay('overlay-tutorial-end', true);
+    coach('', '현우님 차례…', {});
+    setPrompt('다른 플레이어의 차례입니다…');
+    await pause(500);
+    const five = draw(3); await pause(700);
+    discard(3, five); await pause(800);
+    setPrompt('다른 플레이어가 반응할 수 있는 시간입니다…');
+    coach('연습 2 · 꽝!',
+      '현우님이 <b>5</b>를 버렸어요! 다음 차례가 시작되기 전, 지금이 기회예요. 같은 숫자가 <b>세 장</b>이면 <b>“꽝!”</b> — 빛나는 카드나 <b>[꽝]</b>을 누르세요.',
+      {target: el('btn-react-kkwang')});
+    await new Promise(res=>{
+      const done = renderReactionControls({canBong:false, canKkwang:true, canCatch:false}, 5, ()=>{ done(); res(); });
+    });
+    alive();
+    const queen = me.hand.find(c=>c.rank===12);
+    coach('연습 2 · 같이 버리기', '꽝은 같은 숫자 <b>3장</b>에 <b>아무 카드 1장</b>을 얹어 함께 버려요. 큰 <b>Q</b>를 같이 털어요!', {target: el('human-hand')});
+    await new Promise(res=>renderCardPickControls(me.hand, '함께 버릴 카드: Q를 누르세요.', c=>c===queen, res));
+    alive();
+    const fives = me.hand.filter(c=>c.rank===5);
+    [...fives, queen].forEach(c=>{ me.hand.splice(me.hand.indexOf(c),1); G.discard.push({card:c, by:0}); });
+    me.state = 'gun1'; me.hasBonged = true;
+    pushLog(me.name+'님이 "꽝!"을 선언했습니다 — 손 1장 남음.',
+            escapeHtml(me.name)+'님이 '+cardListLabelHTML(fives)+'로 "꽝!" (같이 버림: '+cardLabelHTML(queen)+') — 손 1장 남음.', 'you', true);
+    showActionCallout('꽝!');
+    vibrate([25,40,70]);
+    renderAll();
+    await animateDiscardFlyGroup(0, fives, queen);
+    setPrompt('꽝 성공! 손에 A 한 장만 남았어요.');
+    await pause(300);
+    await coach('연습 2 · 1점!', '손에 <b>A 한 장(1점)</b>만 남았어요! 꽝은 한 번에 4장을 털어 내 점수를 확 낮춰 줘요.', {button:'다음', target: el('human-hand')});
+    alive();
+    await botsRound([1,2,3], true);
+
+    // 누르기
+    turn(0);
+    await coach('연습 2 · 누르기 조건',
+      '내 차례! 지금은 덱을 뽑는 대신 <b>“누르기”</b>를 할 수 있어요. 조건은 세 가지 —<br>① 이번 판에 <b>내가 뻥·꽝 성공</b> ② <b>나 말고 다른 사람도</b> 뻥·꽝 성공(지은님!) ③ 내 손패 합이 <b>10 미만</b>',
+      {button:'다음', target: el('human-hand')});
+    alive();
+    coach('연습 2 · 누르기!',
+      '누르면 판이 바로 끝나요. 내 합이 <b>모두보다 낮으면 성공 → −(10−내 합)점</b>, 나와 같거나 낮은 사람이 있으면 실패 → <b>내 합 +50점</b>. 다들 손이 무거우니 <b>[누르기 시도]</b>!',
+      {});
+    await new Promise(res=>{
+      renderTurnControls({eligiblePress:true, thankYouEligible:false, thankYouCard:null, sum:adjustedSum(me.hand)}, ()=>res());
+      setDeckActive(false);
+      setPrompt('[누르기 시도]를 눌러 보세요.');
+      const pb = el('actions').querySelector('button');
+      if(pb) coachRing(pb);
+    });
+    alive();
+    coachRing(null);
+    pushLog(me.name+'님이 "누르기" 성공! (합 1)', escapeHtml(me.name)+'님이 "누르기" 성공! (합 1)', 'you win', true);
+    showActionCallout('누르기!');
+    vibrate([30,50,80]);
+    await pause(900);
+    const r2 = await resultThen(me.name+'님의 "누르기" 성공.',
+      G.players.map((p,i)=> i===0 ? -(10-adjustedSum(me.hand)) : adjustedSum(p.hand)),
+      '<b>누르기 성공!</b> 나는 <b>−9점</b>. 큰 숫자를 쥐고 있던 민수·현우님은 그 숫자가 <b>그대로 점수</b>가 됐어요 — 남의 점수를 높이는 두 번째 방법!',
+      '정리해 보기 ▸', false);
+    void r2;
+    await tutTip(TUT_TIP_PRESS, '다음 연습 ▸', '여기까지 할게요').then(v=>{ alive(); if(!v) throw 'tutorial-finish'; });
+
+    /* ═════════ 연습 3 · 조합 완성(스트레이트) ═════════
+       7·8·9·J·2 → Q를 뽑고 2를 버림 → 한 바퀴 → 10을 뽑아 7~Q 스트레이트(−57) 선언 */
+    setTable(3, [
+      [C(7,'♣'),C(8,'♦'),C(9,'♠'),C(11,'♣'),C(2,'♥')],
+      [C(3,'♠'),C(5,'♥'),C(6,'♦'),C(12,'♥'),C(1,'♠')],
+      [C(4,'♠'),C(6,'♣'),C(13,'♦'),C(1,'♥'),C(8,'♥')],
+      [C(5,'♣'),C(3,'♦'),C(9,'♥'),C(13,'♣'),C(2,'♣')],
+    ], [C(12,'♦'), C(4,'♦'), C(2,'♦'), C(6,'♠'), C(10,'♥')]);
+    await pause(500);
+    await coach('연습 3 · 조합 완성', '이번엔 <b>6장 조합</b>으로 판을 끝내 볼게요. 내 패를 보세요 — <b>7·8·9·J</b>, 숫자가 거의 이어져 있죠?', {button:'다음', target: el('human-hand')});
+    alive();
+    await myDraw('연습 3 · 뽑기', '덱을 눌러 한 장 뽑아 보세요.');
+    const two = me.hand.find(c=>c.rank===2);
+    await pickDiscard('연습 3 · 모으기',
+      '<b>Q</b>가 왔어요! 7·8·9·<b>?</b>·J·Q — <b>10</b> 한 장이면 6장이 이어져요. 조합을 노릴 땐 큰 카드 대신 <b>안 맞는 2</b>를 버려요. (단, 모으는 동안 누가 판을 끝내면 이 큰 숫자들이 <b>그대로 내 점수</b>! 위험도 있어요.)',
+      two, '조합에 필요 없는 2를 버리세요.');
+    await botsRound([1,2,3], true);
+    await myDraw('연습 3 · 뽑기', '다시 내 차례! 덱을 눌러 뽑아 보세요. 10이 오면 좋겠는데…');
+    await declare('연습 3 · 스트레이트!',
+      '<b>10</b>이 왔어요! 7·8·9·10·J·Q <b>6장 스트레이트</b> 완성! <b>[게임 끝 선언]</b>을 누르세요.',
+      '완성 조합: 스트레이트 (7~Q) (-57)');
+    pushLog(me.name+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', escapeHtml(me.name)+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', 'you win', true);
+    await resultThen(me.name+'님이 스트레이트 (7~Q)(으)로 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? -57 : adjustedSum(p.hand)),
+      '스트레이트는 <b>숫자 합만큼 마이너스</b> — 7+8+9+10+11+12 = <b>−57점</b>! 나머지는 손에 남은 숫자만큼 플러스예요.',
+      '점수 알아보기 ▸', false);
+    await tutTip(TUT_TIP_COMBO, '다음 연습 ▸', '여기까지 할게요').then(v=>{ alive(); if(!v) throw 'tutorial-finish'; });
+
+    /* ═════════ 연습 4 · −100 ═════════
+       K·K·Q·J·10(59) → 3을 뽑고 버림 → 한 바퀴 → Q를 뽑아 합 71 → −100 선언 */
+    setTable(4, [
+      [C(13,'♠'),C(13,'♥'),C(12,'♦'),C(11,'♣'),C(10,'♠')],
+      [C(2,'♠'),C(4,'♥'),C(6,'♦'),C(8,'♠'),C(1,'♦')],
+      [C(3,'♥'),C(5,'♠'),C(7,'♦'),C(9,'♣'),C(2,'♦')],
+      [C(4,'♣'),C(6,'♥'),C(8,'♣'),C(1,'♠'),C(3,'♣')],
+    ], [C(3,'♦'), C(7,'♠'), C(4,'♦'), C(2,'♥'), C(12,'♣')]);
+    await pause(500);
+    await coach('연습 4 · −100',
+      '마지막은 <b>−100</b>! 6장 숫자 합이 <b>70 이상</b>이거나 <b>10 이하</b>면 −100점이에요. 지금 내 패는 13+13+12+11+10 = <b>59</b>.',
+      {button:'다음', target: el('human-hand')});
+    alive();
+    await myDraw('연습 4 · 뽑기', '덱을 눌러 한 장 뽑아 보세요.');
+    const three = me.hand.find(c=>c.rank===3);
+    await pickDiscard('연습 4 · 모으기', '<b>3</b>이 왔네요. 지금은 <b>큰 숫자를 모으는 중</b>이니, 작은 <b>3</b>을 버려요.', three, '작은 3을 버리세요.');
+    await botsRound([1,2,3], true);
+    await myDraw('연습 4 · 뽑기', '다시 내 차례! 합 70까지 <b>11</b> 남았어요. 덱을 눌러 보세요.');
+    await declare('연습 4 · −100!',
+      '<b>Q</b>가 왔어요! 13+13+12+12+11+10 = <b>71</b> — 70을 넘었어요! <b>[게임 끝 선언]</b>을 누르세요.',
+      '완성 조합: 숫자 합 조건 (-100)');
+    pushLog(me.name+'님이 "게임 끝" 선언! (-100 조건)', escapeHtml(me.name)+'님이 "게임 끝" 선언! (-100 조건)', 'you win', true);
+    await resultThen(me.name+'님이 -100 조건(으)로 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? -100 : adjustedSum(p.hand)),
+      '숫자 합 <b>71</b> → <b>−100점</b>! 한 번에 크게 깎는 한 방이에요.',
+      '점수 알아보기 ▸', false);
+    await tutTip(TUT_TIP_HUNDRED, '확인');
+    alive();
+    finish();
   }catch(e){
+    if(e === 'tutorial-finish'){ finish(); return; }
     if(e !== 'tutorial-abort') console.error(e);
     endTutorialUI();
   }
+}
+
+/* 연습 사이의 설명 팝업. 확인 → true, 보조 버튼 → false. */
+const TUT_LESSONS = 4;
+function tipRow(name, sub, cards, score, hot){
+  return '<div class="tip-row'+(hot?' hot':'')+'"><div class="tip-head"><span class="tip-name">'+name
+    +(sub?'<small>'+sub+'</small>':'')+'</span><span class="tip-score'+(/\+/.test(score)?' plus':'')+'">'+score+'</span></div>'
+    +(cards ? '<div class="tip-cards">'+cards.split(/\s+/).map(rbCardHTML).join('')+'</div>' : '')+'</div>';
+}
+function TUT_TIP_INTRO(){
+  return { title:'게임 방법 한눈에', icon:'🃏',
+    lead:'목표는 하나 — <b>내 손패 합은 낮게, 남의 손패 합은 높게!</b> 13판이 끝났을 때 누적 점수가 가장 낮은 사람이 1등이에요.',
+    body:
+      '<div class="tip-flow">'
+      +'<div class="tip-flow-step"><span class="tip-num">1</span><span><b>내 차례:</b> 덱에서 <b>1장 뽑기</b></span></div>'
+      +'<div class="tip-flow-step"><span class="tip-num">2</span><span><b>6장이 조합이면</b> “게임 끝” 선언 · <b>아니면 1장 버리기</b></span></div>'
+      +'<div class="tip-flow-step"><span class="tip-num">!</span><span>누가 카드를 버린 직후 ~ <b>다음 사람이 덱을 뽑기 전</b>에는 누구나 <b>뻥·꽝·잡기</b>로 끼어들 수 있어요</span></div>'
+      +'</div>'
+      +'<div class="tip-cols">'
+      +'<div class="tip-col"><div class="tip-col-h">⬇ 내 점수 낮추기</div>'
+      +'<p><b>뻥</b> 같은 숫자 2장 + 1장 버림<br><b>꽝</b> 같은 숫자 3장 + 1장 버림<br>→ 손패가 줄어 합이 낮아져요</p>'
+      +'<p><b>6장 조합</b> → 마이너스 점수!<br><span class="tip-warn">⚠ 모으다가 남이 먼저 판을 끝내면 들고 있던 숫자가 그대로 내 점수</span></p></div>'
+      +'<div class="tip-col"><div class="tip-col-h">⬆ 남의 점수 높이기</div>'
+      +'<p><b>잡기</b> 내 손의 짝(2장)과 같은 숫자를 누가 버리면 판 끝 — 버린 사람 <b>+30 벌점</b></p>'
+      +'<p><b>누르기</b> 뻥·꽝으로 손이 가벼워졌을 때 판을 일찍 끝내, 다른 사람들이 큰 숫자를 그대로 떠안게 해요</p></div>'
+      +'</div>',
+    foot:'이제 <b>연습 네 판</b>으로 하나씩 직접 해 봐요 — ① 뻥·잡기 ② 꽝·누르기 ③ 조합 ④ −100' };
+}
+function TUT_TIP_PRESS(){
+  return { title:'남의 점수 높이기', icon:'🎯',
+    lead:'판이 끝나면 다른 사람은 <b>손에 남은 숫자 합</b>만큼 점수를 받아요. 그래서 <b>남들이 손이 무거울 때 판을 끝내는 것</b>이 공격이에요.',
+    body: tipRow('잡기', '내 짝(정확히 2장)과 같은 숫자를 누가 버리면 · 차례 상관없이', '*8♠ *8♥ 8♦', '버린 사람 +30', true)
+        + tipRow('누르기 성공', '내 합이 모두보다 낮을 때', 'A♣', '−(10−합)')
+        + tipRow('누르기 실패', '나와 합이 같거나 낮은 사람이 있으면', '', '내 합 +50')
+        + '<div class="tip-cond"><b>누르기 조건</b> ① 이번 판에 내가 뻥·꽝 성공 ② <b>나 말고 다른 누군가도</b> 뻥·꽝 성공(혼자서는 불가) ③ 내 손패 합 <b>10 미만</b> ④ 내 차례에 덱을 뽑기 전</div>',
+    foot:'남들이 몇 장 들고 있는지 보고 누르세요. 뻥·꽝을 친 사람은 손이 가벼워 <b>실패</b>할 수 있어요!' };
+}
+function TUT_TIP_COMBO(){
+  return { title:'조합 점수표', icon:'🃏',
+    lead:'내 차례에 뽑아서 <b>6장이 모두 맞으면</b> “게임 끝”을 선언해요. 나는 <b>마이너스</b>, 다른 사람은 손에 남은 숫자만큼 <b>플러스</b>!',
+    body: tipRow('스트레이트', '6장 연속 · 숫자 합만큼', '7♣ 8♦ 9♠ 10♥ J♣ Q♦', '−57', true)
+        + tipRow('4 / 2', '같은 숫자 4장 + 2장', '5♠ 5♥ 5♦ 5♣ 9♠ 9♥', '−50')
+        + tipRow('3 / 3', '같은 숫자 3장 + 3장', '4♠ 4♥ 4♦ J♣ J♠ J♥', '−30')
+        + tipRow('4 / 1 / 1', '같은 숫자 4장 + 아무거나 2장', '8♠ 8♥ 8♦ 8♣ 2♠ K♥', '−30')
+        + tipRow('2 / 2 / 2', '같은 숫자 2장씩 세 쌍', '3♠ 3♥ 6♦ 6♣ Q♠ Q♥', '−10'),
+    foot:'스트레이트는 클수록 이득 — 최고는 <b>9·10·J·Q·K·A = −69</b>. 단, 뻥·꽝으로 손이 줄면 6장 조합은 못 만들고, 모으는 중에 남이 판을 끝내면 <b>들고 있던 숫자가 그대로 내 점수</b>예요.' };
+}
+function TUT_TIP_HUNDRED(){
+  return { title:'−100 점수', icon:'💯',
+    lead:'6장 <b>숫자 합이 10 이하</b>이거나 <b>70 이상</b>이면 −100점! (A=1, J=11, Q=12, K=13)',
+    body: tipRow('합 70 이상', '10+11+11+12+13+13 = 70', '10♠ J♥ J♦ Q♣ K♠ K♥', '−100', true)
+        + tipRow('합 10 이하', '1+1+1+2+2+3 = 10', 'A♠ A♥ A♦ 2♣ 2♠ 3♥', '−100')
+        + tipRow('조합과 겹치면 더해요', '3/3(−30) + 합 75(−100)', 'Q♠ Q♥ Q♦ K♣ K♠ K♥', '−130', true),
+    foot:'큰 카드가 자꾸 들어오면 버리지 말고 <b>−100</b>을 노려 보세요. 단, 못 만들고 판이 끝나면 그 큰 숫자가 <b>그대로 내 점수</b>가 되는 모험이에요!' };
+}
+function tutTip(makeTip, okLabel, altLabel){
+  const t = makeTip();
+  el('tut-tip-icon').textContent = t.icon;
+  el('tut-tip-title').textContent = t.title;
+  el('tut-tip-lead').innerHTML = t.lead;
+  el('tut-tip-body').innerHTML = t.body;
+  el('tut-tip-foot').innerHTML = t.foot;
+  const ok = el('btn-tut-tip-ok'), alt = el('btn-tut-tip-alt');
+  ok.textContent = okLabel || '확인';
+  alt.hidden = !altLabel; if(altLabel) alt.textContent = altLabel;
+  toggleOverlay('overlay-tut-tip', true);
+  el('tut-tip-body').parentElement.scrollTop = 0;
+  return new Promise(res=>{
+    const done = v=>{ ok.onclick = alt.onclick = null; toggleOverlay('overlay-tut-tip', false); sfx('tick'); res(v); };
+    ok.onclick = ()=>done(true);
+    alt.onclick = ()=>done(false);
+  });
 }
 
 function tutorialBackHome(){
