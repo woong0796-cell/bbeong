@@ -1852,6 +1852,15 @@
   .tip-warn{color:#A0590A;font-weight:700;font-size:12.5px;}
   .tip-cond{background:var(--surface-2);border-radius:12px;padding:9px 11px;font-size:13px;line-height:1.6;text-align:left;}
   .tip-score{font-size:20px;}
+  /* v42 튜토리얼 완료 창의 짧은 정리 */
+  .tut-sum{display:flex;flex-direction:column;gap:6px;margin:10px 0 12px;text-align:left;}
+  .sum-row{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:10px;padding:8px 11px;font-size:14px;line-height:1.45;}
+  .sum-k{flex:none;width:84px;font-weight:900;font-size:13px;color:var(--muted);}
+  .sum-k.down{color:var(--brand);}
+  .sum-k.up{color:#B5121B;}
+  .tut-more-rb{text-align:center;}
+  .tut-rb-link{background:none;border:0;padding:0 2px;font:inherit;font-weight:900;color:var(--brand);cursor:pointer;}
+  .tut-rb-link:hover{filter:brightness(1.2);}
   /* v41: 게임판 ↔ 내 패 경계선 드래그로 크기 조절(PC·태블릿) */
   .split-handle{position:absolute;left:0;right:0;top:-11px;height:22px;z-index:6;cursor:row-resize;
     display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-user-select:none;user-select:none;}
@@ -1866,6 +1875,17 @@
     #app.hand-sized.hand-small #reaction-bar{flex-direction:row;}
     #app.hand-sized.hand-small #reaction-bar button{min-width:72px;padding-left:14px;padding-right:14px;}
     #app.hand-sized.hand-small .human-side{gap:6px;}
+  }
+  /* v42: 작은 노트북(가로로 넓고 높이 800px 이하)은 기본값부터 스크롤 없이 한 화면에.
+     내 패 영역의 높이를 실제로 붙잡고 있던 건 세로로 쌓인 뻥·꽝·잡기 버튼 줄이라,
+     이 높이에서는 버튼을 가로 한 줄로 두고 여백을 줄입니다(카드 크기는 그대로). */
+  @media (min-width:701px) and (max-height:800px) and (orientation:landscape){
+    #reaction-bar{flex-direction:row;}
+    #reaction-bar button{min-width:72px;padding-left:14px;padding-right:14px;}
+    .human-side{gap:6px;}
+    .human-area{padding-top:6px;padding-bottom:8px;}
+    .human-status{margin-bottom:2px;}
+    .prompt{margin-bottom:4px;}
   }
   .tut-tip .tut-cards{font-size:30px;margin:0 0 4px;}
   .tut-tip h2{font-size:22px;}
@@ -1933,7 +1953,7 @@
     <div class="modal tut-modal">
       <div class="tut-cards" aria-hidden="true">🂡 🂾 🃁</div>
       <h2>처음 오셨나요?</h2>
-      <div class="modal-sub">실제 게임 화면에서 <b>① 뻥·잡기 → ② 꽝·누르기 → ③ 조합 → ④ −100</b>까지, 짧은 연습 네 판으로 핵심을 직접 해 보는 <b>5분 튜토리얼</b>이 있어요.</div>
+      <div class="modal-sub">실제 게임 화면에서 짧은 연습 다섯 판으로 직접 해 보는 <b>5분 튜토리얼</b>이 있어요.</div>
       <div class="modal-actions">
         <button class="cta" id="btn-tut-ask-yes">튜토리얼 해보기</button>
         <button class="cta ghost" id="btn-tut-ask-no">바로 시작할게요</button>
@@ -1959,8 +1979,13 @@
     <div class="modal tut-modal">
       <div class="tut-cards" aria-hidden="true">🎉</div>
       <h2>튜토리얼 완료!</h2>
-      <div class="modal-sub">기억할 건 하나 — <b>내 손패 합은 낮게</b>(뻥·꽝·조합), <b>남의 손패 합은 높게</b>(잡기·누르기)!</div>
-      <div class="tut-more">실전 요령: 큰 숫자는 일찍 버리고, 짝이 보이면 <b>뻥</b>, 이어지는 숫자가 모이면 <b>조합</b>, 큰 카드가 쌓이면 <b>−100</b>을 노려 보세요. 더 자세한 건 📖 룰북에서!</div>
+      <div class="tut-sum">
+        <div class="sum-row"><span class="sum-k">내 차례</span><span>1장 뽑기 → 6장 완성이면 <b>끝</b>, 아니면 <b>1장 버리기</b></span></div>
+        <div class="sum-row"><span class="sum-k down">⬇ 내 점수</span><span><b>조합 · −100</b>으로 끝내기, <b>뻥 · 꽝</b>으로 털기</span></div>
+        <div class="sum-row"><span class="sum-k up">⬆ 남의 점수</span><span><b>잡기</b>(+30) · <b>누르기</b></span></div>
+        <div class="sum-row"><span class="sum-k">끼어들기</span><span>누가 버린 직후, <b>다음 사람이 뽑기 전</b>까지</span></div>
+      </div>
+      <div class="tut-more tut-more-rb">더 자세한 건 <button type="button" class="tut-rb-link" id="btn-tut-rulebook">📖 <u>룰북</u></button>에서!</div>
       <div class="modal-actions">
         <button class="cta" id="btn-tut-play">바로 한 판 하기</button>
         <button class="cta ghost" id="btn-tut-home">처음 화면으로</button>
@@ -2041,10 +2066,10 @@
         <label>봇 실력</label>
         <div class="seg" id="seg-difficulty">
           <button data-v="easy">쉬움</button>
-          <button data-v="normal">보통</button>
-          <button data-v="hard" class="active">어려움</button>
+          <button data-v="normal" class="active">보통</button>
+          <button data-v="hard">어려움</button>
         </div>
-        <div class="hint" id="difficulty-hint">봇이 버림더미를 기억해 안전한 카드를 골라 버리고, 아직 안 나온 낮은 카드와 상대의 남은 장수를 보고 누르기를 판단합니다.</div>
+        <div class="hint" id="difficulty-hint">뻥이 손해일 땐 참고, 아직 안 나온 낮은 카드를 보고 누르기를 조심합니다. 버림더미를 기억하거나 상대 장수를 읽지는 않아요.</div>
       </div>
 
       <div class="field">
@@ -3824,7 +3849,7 @@ async function startGame(opts){
     G.numPlayers = opts.seats.length;
     G.totalRounds = NET.settings.rounds;
     G.expansions = { joker: !!NET.settings.joker, thankyou: !!NET.settings.thankyou, double: !!NET.settings.double };
-    G.botDifficulty = NET.settings.difficulty || 'hard';
+    G.botDifficulty = NET.settings.difficulty || 'normal';
     G.players = opts.seats.map((s,i)=>({
       id:i, name:s.name, isBot:s.kind==='bot', hand:[], score:0, state:'normal', hasBonged:false,
       persona: s.kind==='bot' ? randomPersona() : null
@@ -4737,7 +4762,7 @@ const BOT_DIFFICULTIES = {
   normal: { key:'normal', label:'보통',   judgeBong:true,  discardNoise:0.10, countLowCards:true,  useMemory:false, useOpponents:false },
   hard:   { key:'hard',   label:'어려움', judgeBong:true,  discardNoise:0.00, countLowCards:true,  useMemory:true,  useOpponents:true  },
 };
-let cfgDifficulty = 'hard';
+let cfgDifficulty = 'normal'; // v42: 기본값 보통
 
 // 성격. bongBias가 높을수록 뻥/꽝을 반기고, pressSum이 클수록 누르기를 과감하게
 // 시도하며, doubleBias는 2배판 선언 성향입니다. 이름표는 봇 패널에 표시됩니다.
@@ -7258,8 +7283,12 @@ function refreshSoundMenu(){
     panel.classList.toggle('collapsed', collapsed);
     try{ localStorage.setItem('bbeong-log-collapsed', collapsed ? '1' : '0'); }catch(_e){}
   }
-  let start = false;
-  try{ start = localStorage.getItem('bbeong-log-collapsed') === '1'; }catch(_e){}
+  let start = false, saved = null;
+  try{ saved = localStorage.getItem('bbeong-log-collapsed'); }catch(_e){}
+  // v42: 직접 고른 적이 없으면, 폭이 좁고 낮은 노트북(1150×800 이하)에서는 접은 채로 시작 —
+  // 기록 칸 폭만큼 게임판이 넓어져 내 패와 버튼이 한 줄에 들어갑니다.
+  if(saved === null) start = window.innerWidth <= 1150 && window.innerHeight <= 800;
+  else start = saved === '1';
   panel.classList.toggle('collapsed', start);
   el('btn-log-collapse').addEventListener('click', ()=>set(true));
   el('btn-log-expand').addEventListener('click', ()=>set(false));
@@ -7547,50 +7576,104 @@ async function startTutorial(){
   const finish = ()=>{ endTutorialUI(); toggleOverlay('overlay-tutorial-end', true); };
 
   try{
-    /* ═════════ 시작: 게임 방법 한눈에 ═════════ */
+    /* ═══════════════════════════════════════════════════════════════
+       v42 순서: 먼저 "판을 끝내는 법"(스트레이트 → 짝 조합 → −100)을 익히고,
+       그다음 "남의 차례에 끼어들기"(뻥·잡기 → 꽝·누르기). 처음엔 긴 설명 없이
+       바로 해 보고, 규칙 정리는 마지막 완료 창에서 짧게 한 번.
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ═════════ 연습 1 · 스트레이트 (내 차례 흐름: 뽑기 → 버리기 → 완성) ═════════ */
     setTable(1, [
-      [C(7,'♥'),C(7,'♠'),C(4,'♦'),C(4,'♣'),C(13,'♠')],
+      [C(7,'♣'),C(8,'♦'),C(9,'♠'),C(11,'♣'),C(2,'♥')],
+      [C(3,'♠'),C(5,'♥'),C(6,'♦'),C(12,'♥'),C(1,'♠')],
+      [C(4,'♠'),C(6,'♣'),C(13,'♦'),C(1,'♥'),C(8,'♥')],
+      [C(5,'♣'),C(3,'♦'),C(9,'♥'),C(13,'♣'),C(2,'♣')],
+    ], [C(12,'♦'), C(4,'♦'), C(2,'♦'), C(6,'♠'), C(10,'♥')]);
+    await coach('튜토리얼', '<b>연습 다섯 판</b>으로 직접 해 보며 배워요. 시키는 대로만 눌러 보세요!', {button:'시작!'});
+    alive();
+    await coach('연습 1 · 내 패', '내 패 5장이에요. 판이 끝나면 <b>남은 숫자 합이 내 점수</b> — <b>낮을수록 좋아요!</b>', {button:'다음', target: el('human-hand')});
+    alive();
+    await myDraw('연습 1 · 뽑기', '내 차례엔 먼저 <b>덱에서 1장</b> 뽑아요.');
+    const two = me.hand.find(c=>c.rank===2);
+    await pickDiscard('연습 1 · 버리기', '<b>7·8·9·?·J·Q</b> — 10만 오면 6장이 이어져요! 필요 없는 <b>2</b>를 버려요.', two, '2를 눌러 버리세요.');
+    await botsRound([1,2,3], true);
+    await myDraw('연습 1 · 뽑기', '다시 내 차례! 덱을 눌러요.');
+    await declare('연습 1 · 스트레이트!', '<b>10</b>이 왔어요! 6장이 이어진 <b>스트레이트</b> → <b>[게임 끝 선언]</b>!', '완성 조합: 스트레이트 (7~Q) (-57)');
+    pushLog(me.name+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', escapeHtml(me.name)+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', 'you win', true);
+    await resultThen(me.name+'님이 스트레이트 (7~Q)(으)로 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? -57 : adjustedSum(p.hand)),
+      '스트레이트는 <b>숫자 합만큼 마이너스</b> → <b>−57점!</b> 다른 사람은 남은 숫자만큼 플러스.',
+      '스트레이트 정리 ▸', false);
+    if(!await tutTip(TUT_TIP_STRAIGHT, '다음 연습 ▸', '여기까지 할게요')) throw 'tutorial-finish';
+    alive();
+
+    /* ═════════ 연습 2 · 같은 숫자 조합 (2/2/2) ═════════ */
+    setTable(2, [
+      [C(3,'♠'),C(3,'♥'),C(8,'♦'),C(8,'♣'),C(12,'♠')],
+      [C(2,'♠'),C(5,'♦'),C(9,'♥'),C(11,'♣'),C(13,'♦')],
+      [C(4,'♥'),C(7,'♦'),C(10,'♣'),C(6,'♠'),C(1,'♣')],
+      [C(6,'♥'),C(9,'♣'),C(11,'♦'),C(13,'♥'),C(5,'♠')],
+    ], [C(12,'♥')]);
+    await pause(400);
+    await coach('연습 2 · 짝 조합', '이번엔 <b>같은 숫자 짝</b>으로! 내 패에 <b>3·3</b>, <b>8·8</b> 두 쌍이 있어요.', {button:'다음', target: el('human-hand')});
+    alive();
+    await myDraw('연습 2 · 뽑기', '덱을 눌러 뽑아요.');
+    await declare('연습 2 · 2/2/2!', '<b>Q</b>가 와서 <b>Q·Q</b>! 짝 세 쌍 = <b>2/2/2</b> → <b>[게임 끝 선언]</b>!', '완성 조합: 2/2/2 (-10)');
+    pushLog(me.name+'님이 "게임 끝" 선언! (2/2/2)', escapeHtml(me.name)+'님이 "게임 끝" 선언! (2/2/2)', 'you win', true);
+    await resultThen(me.name+'님이 2/2/2(으)로 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? -10 : adjustedSum(p.hand)),
+      '2/2/2는 <b>−10점</b>. 같은 숫자를 더 많이 모으면 점수가 커져요!',
+      '짝 조합 정리 ▸', false);
+    if(!await tutTip(TUT_TIP_PAIRS, '다음 연습 ▸', '여기까지 할게요')) throw 'tutorial-finish';
+    alive();
+
+    /* ═════════ 연습 3 · −100 ═════════ */
+    setTable(3, [
+      [C(13,'♠'),C(13,'♥'),C(12,'♦'),C(11,'♣'),C(10,'♠')],
+      [C(2,'♠'),C(4,'♥'),C(6,'♦'),C(8,'♠'),C(1,'♦')],
+      [C(3,'♥'),C(5,'♠'),C(7,'♦'),C(9,'♣'),C(2,'♦')],
+      [C(4,'♣'),C(6,'♥'),C(8,'♣'),C(1,'♠'),C(3,'♣')],
+    ], [C(12,'♣')]);
+    await pause(400);
+    await coach('연습 3 · −100', '6장 합이 <b>70 이상</b>(또는 <b>10 이하</b>)이면 <b>−100점</b>! 지금 합은 <b>59</b>.', {button:'다음', target: el('human-hand')});
+    alive();
+    await myDraw('연습 3 · 뽑기', '덱을 눌러요. 큰 숫자가 오면…');
+    await declare('연습 3 · −100!', '<b>Q</b>! 합 <b>71</b> → <b>[게임 끝 선언]</b>!', '완성 조합: 숫자 합 조건 (-100)');
+    pushLog(me.name+'님이 "게임 끝" 선언! (-100 조건)', escapeHtml(me.name)+'님이 "게임 끝" 선언! (-100 조건)', 'you win', true);
+    await resultThen(me.name+'님이 -100 조건(으)로 판을 끝냈습니다.',
+      G.players.map((p,i)=> i===0 ? -100 : adjustedSum(p.hand)),
+      '<b>−100점!</b> 단, 큰 숫자를 모으다 남이 먼저 끝내면 <b>그대로 내 점수</b> — 모험이에요.',
+      '−100 정리 ▸', false);
+    if(!await tutTip(TUT_TIP_HUNDRED, '다음 연습 ▸', '여기까지 할게요')) throw 'tutorial-finish';
+    alive();
+
+    /* ═════════ 연습 4 · 뻥 · 잡기 (남의 차례에 끼어들기) ═════════ */
+    setTable(4, [
+      [C(7,'♥'),C(7,'♠'),C(4,'♦'),C(4,'♣'),C(9,'♦')],
       [C(2,'♠'),C(5,'♦'),C(9,'♥'),C(11,'♣'),C(12,'♦')],
       [C(3,'♥'),C(7,'♦'),C(8,'♣'),C(10,'♠'),C(1,'♣')],
       [C(6,'♠'),C(6,'♥'),C(9,'♣'),C(11,'♦'),C(13,'♥')],
-    ], [C(9,'♦'), C(10,'♣'), C(6,'♣'), C(4,'♥')]);
-    coach('튜토리얼', '<b>뻥게임</b>을 짧은 연습 네 판으로 익혀 볼게요. 먼저 게임 방법부터!', {});
-    await pause(300);
-    await tutTip(TUT_TIP_INTRO, '연습 시작!');
+    ], [C(10,'♣'), C(6,'♣'), C(4,'♥')]);
+    turn(1);
+    await pause(400);
+    await coach('연습 4 · 뻥과 잡기', '이번엔 <b>남의 차례에 끼어들기</b>! 내 패에 <b>7·7</b>, <b>4·4</b> 짝이 있어요.', {button:'다음', target: el('human-hand')});
     alive();
-
-    /* ═════════ 연습 1 · 기본 흐름 + 뻥 + 잡기 ═════════
-       ① 덱 뽑기 → ② K 버리기 → ③ 민수·지은 → ④ 지은의 7에 뻥(+9) → ⑤ 4 두 장 = 총
-       → ⑥ 민수가 4를 버림 → 잡기 → 결과(나 0점, 민수 +30 벌점) */
-    await coach('연습 1 · 내 패', '아래가 <b>내 패 5장</b>이에요. 판이 끝날 때 손에 남은 숫자 합이 내 점수가 돼요. <b>점수는 낮을수록 좋아요!</b>', {button:'다음', target: el('human-hand')});
-    alive();
-
-    await myDraw('연습 1 · ① 뽑기', '내 차례엔 언제나 <b>덱에서 1장 뽑기</b>부터! 가운데 <b>덱</b>을 눌러 보세요.');
-    const king = me.hand.find(c=>c.rank===13);
-    await pickDiscard('연습 1 · ② 버리기',
-      '6장이 됐어요. 6장이 <b>조합</b>이면 “게임 끝”을 선언하고, 아니면 <b>1장을 버려요</b>. 남는 숫자가 점수가 되니 가장 큰 <b>K</b>를 버려 볼까요?',
-      king, 'K를 눌러 버리세요.');
-
-    coach('', '다른 사람들도 차례대로 <b>1장 뽑고 1장 버려요</b>…', {});
+    coach('', '민수님, 지은님 차례…', {});
     setPrompt('다른 플레이어의 차례입니다…');
-    turn(1); await pause(700);
+    await pause(500);
     draw(1); await pause(650);
     discard(1, G.players[1].hand.find(c=>c.rank===5)); await pause(900);
     turn(2); await pause(600);
     draw(2); await pause(650);
     discard(2, G.players[2].hand.find(c=>c.rank===7)); await pause(800);
-
-    // 뻥! — 타이밍 설명
     setPrompt('다른 플레이어가 반응할 수 있는 시간입니다…');
-    coach('연습 1 · 뻥!',
-      '지은님이 <b>7</b>을 버렸어요! 누가 카드를 버린 직후, <b>다음 사람(현우님)이 덱에서 뽑기 전까지</b>가 뻥·꽝 타이밍이에요. 내 손에 7이 <b>두 장</b> — 빛나는 카드나 <b>[뻥]</b>을 누르세요!',
-      {target: el('btn-react-bong')});
+    coach('연습 4 · 뻥!', '지은님이 <b>7</b>을 버렸어요! 다음 사람이 덱을 뽑기 전에 — 같은 숫자 <b>2장</b>이면 <b>[뻥]</b>!', {target: el('btn-react-bong')});
     await new Promise(res=>{
       const done = renderReactionControls({canBong:true, canKkwang:false, canCatch:false}, 7, ()=>{ done(); res(); });
     });
     alive();
     const nine = me.hand.find(c=>c.rank===9);
-    coach('연습 1 · 같이 버리기', '뻥은 같은 숫자 <b>2장</b>에 <b>아무 카드 1장</b>을 얹어 함께 버리는 거예요. 큰 <b>9</b>를 같이 털어 버려요!', {target: el('human-hand')});
+    coach('연습 4 · 같이 버리기', '7 두 장 + <b>아무 1장</b>을 함께 버려요. 큰 <b>9</b>를!', {target: el('human-hand')});
     await new Promise(res=>renderCardPickControls(me.hand, '함께 버릴 카드: 9를 누르세요.', c=>c===nine, res));
     alive();
     const sevens = me.hand.filter(c=>c.rank===7);
@@ -7604,19 +7687,14 @@ async function startTutorial(){
     await animateDiscardFlyGroup(0, sevens, nine);
     setPrompt('뻥 성공! 손에 4 두 장이 남았어요.');
     await pause(300);
-    await coach('연습 1 · 총 장전',
-      '손패 합이 <b>8</b>로 확 줄었죠? 뻥·꽝은 <b>내 점수를 낮추는</b> 방법이에요. 그리고 같은 숫자 <b>4 두 장</b>이 남은 이 상태를 <b>“총”</b>이라 해요 — 누가 4를 버리면 바로 <b>잡을</b> 수 있어요. (뻥을 치면 차례는 내 다음 사람에게 넘어가요.)',
-      {button:'다음', target: el('human-hand')});
+    await coach('연습 4 · 총 장전', '손패 합이 <b>8</b>로 확 줄었어요! 남은 <b>4·4</b>는 <b>“총”</b> — 누가 4를 버리면 잡을 수 있어요.', {button:'다음', target: el('human-hand')});
     alive();
-
     coach('', '민수님 차례…', {});
     setPrompt('다른 플레이어의 차례입니다…');
     turn(1); await pause(700);
     const four = draw(1); await pause(700);
     discard(1, four); await pause(800);
-    coach('연습 1 · 잡기!',
-      '민수님이 <b>4</b>를 버렸어요! 내 손에 4가 <b>정확히 2장</b> — 내 차례가 아니어도 <b>[잡기]</b>로 판을 바로 끝낼 수 있어요. 누르세요!',
-      {target: el('btn-react-catch')});
+    coach('연습 4 · 잡기!', '민수님이 <b>4</b>를 버렸어요! <b>[잡기]</b>!', {target: el('btn-react-catch')});
     await new Promise(res=>{
       const done = renderReactionControls({canBong:false, canKkwang:false, canCatch:true}, 4, ()=>{ done(); res(); });
     });
@@ -7625,17 +7703,14 @@ async function startTutorial(){
     vibrate([30,50,80]);
     coachRing(null);
     await pause(900);
-
-    const r1 = await resultThen(me.name+'님이 민수님을 [4♥]로 잡아 판을 끝냈습니다.',
+    const r4 = await resultThen(me.name+'님이 민수님을 [4♥]로 잡아 판을 끝냈습니다.',
       G.players.map((p,i)=> i===0 ? 0 : (i===1 ? adjustedSum(p.hand)+30 : adjustedSum(p.hand))),
-      '<b>잡기 성공!</b> 나는 <b>0점</b>, 4를 버린 민수님은 손패 합에 <b>+30점 벌점</b> — 이게 <b>남의 점수를 높이는</b> 첫 번째 방법이에요.',
+      '<b>잡기!</b> 나는 <b>0점</b>, 4를 버린 민수님은 <b>+30 벌점</b>.',
       '다음 연습 ▸', true);
-    if(r1 === 'skip'){ finish(); return; }
+    if(r4 === 'skip') throw 'tutorial-finish';
 
-    /* ═════════ 연습 2 · 꽝 + 누르기 ═════════
-       지은이 이미 뻥(손 2장) → 현우가 5를 버림 → 5 세 장으로 꽝(+Q) → 손에 A 한 장
-       → 한 바퀴 → 내 차례에 누르기(합 1 < 모두) → −9 */
-    setTable(2, [
+    /* ═════════ 연습 5 · 꽝 · 누르기 ═════════ */
+    setTable(5, [
       [C(5,'♠'),C(5,'♥'),C(5,'♦'),C(1,'♣'),C(12,'♥')],
       [C(3,'♠'),C(6,'♥'),C(7,'♣'),C(10,'♦'),C(11,'♠')],
       [C(8,'♠'),C(13,'♦')],
@@ -7645,10 +7720,8 @@ async function startTutorial(){
     jieun.state = 'gun2'; jieun.hasBonged = true;
     pushLog('지은님이 "뻥!"을 선언했습니다 — 손 2장 남음.', '지은님이 <b>J♣ J♠</b>로 "뻥!" (같이 버림: <b>9♦</b>) — 손 2장 남음.', 'sys', true);
     turn(3); renderAll();
-    await pause(500);
-    await coach('연습 2 · 꽝과 누르기',
-      '이번 판엔 이미 <b>지은님이 뻥</b>을 쳐서 손이 2장이에요. 그리고 내 패엔 <b>5가 세 장</b>! 지금은 현우님 차례예요.',
-      {button:'다음', target: el('human-hand')});
+    await pause(400);
+    await coach('연습 5 · 꽝과 누르기', '<b>지은님은 이미 뻥</b>을 쳤어요. 내 패엔 <b>5가 세 장</b>!', {button:'다음', target: el('human-hand')});
     alive();
     coach('', '현우님 차례…', {});
     setPrompt('다른 플레이어의 차례입니다…');
@@ -7656,15 +7729,13 @@ async function startTutorial(){
     const five = draw(3); await pause(700);
     discard(3, five); await pause(800);
     setPrompt('다른 플레이어가 반응할 수 있는 시간입니다…');
-    coach('연습 2 · 꽝!',
-      '현우님이 <b>5</b>를 버렸어요! 다음 차례가 시작되기 전, 지금이 기회예요. 같은 숫자가 <b>세 장</b>이면 <b>“꽝!”</b> — 빛나는 카드나 <b>[꽝]</b>을 누르세요.',
-      {target: el('btn-react-kkwang')});
+    coach('연습 5 · 꽝!', '현우님이 <b>5</b>를 버렸어요! 같은 숫자 <b>3장</b>이면 <b>[꽝]</b>!', {target: el('btn-react-kkwang')});
     await new Promise(res=>{
       const done = renderReactionControls({canBong:false, canKkwang:true, canCatch:false}, 5, ()=>{ done(); res(); });
     });
     alive();
     const queen = me.hand.find(c=>c.rank===12);
-    coach('연습 2 · 같이 버리기', '꽝은 같은 숫자 <b>3장</b>에 <b>아무 카드 1장</b>을 얹어 함께 버려요. 큰 <b>Q</b>를 같이 털어요!', {target: el('human-hand')});
+    coach('연습 5 · 같이 버리기', '5 세 장 + <b>아무 1장</b>. 큰 <b>Q</b>를!', {target: el('human-hand')});
     await new Promise(res=>renderCardPickControls(me.hand, '함께 버릴 카드: Q를 누르세요.', c=>c===queen, res));
     alive();
     const fives = me.hand.filter(c=>c.rank===5);
@@ -7678,19 +7749,13 @@ async function startTutorial(){
     await animateDiscardFlyGroup(0, fives, queen);
     setPrompt('꽝 성공! 손에 A 한 장만 남았어요.');
     await pause(300);
-    await coach('연습 2 · 1점!', '손에 <b>A 한 장(1점)</b>만 남았어요! 꽝은 한 번에 4장을 털어 내 점수를 확 낮춰 줘요.', {button:'다음', target: el('human-hand')});
+    await coach('연습 5 · 1점!', '손에 <b>A 한 장(1점)</b>만 남았어요!', {button:'다음', target: el('human-hand')});
     alive();
     await botsRound([1,2,3], true);
-
-    // 누르기
     turn(0);
-    await coach('연습 2 · 누르기 조건',
-      '내 차례! 지금은 덱을 뽑는 대신 <b>“누르기”</b>를 할 수 있어요. 조건은 세 가지 —<br>① 이번 판에 <b>내가 뻥·꽝 성공</b> ② <b>나 말고 다른 사람도</b> 뻥·꽝 성공(지은님!) ③ 내 손패 합이 <b>10 미만</b>',
-      {button:'다음', target: el('human-hand')});
+    await coach('연습 5 · 누르기', '내 차례! <b>나도, 다른 사람도 뻥·꽝 성공</b> + 내 합 <b>10 미만</b>이면 <b>“누르기”</b>로 판을 끝낼 수 있어요.', {button:'다음', target: el('human-hand')});
     alive();
-    coach('연습 2 · 누르기!',
-      '누르면 판이 바로 끝나요. 내 합이 <b>모두보다 낮으면 성공 → −(10−내 합)점</b>, 나와 같거나 낮은 사람이 있으면 실패 → <b>내 합 +50점</b>. 다들 손이 무거우니 <b>[누르기 시도]</b>!',
-      {});
+    coach('연습 5 · 누르기!', '내 합이 <b>제일 낮으면 성공</b>, 아니면 <b>+50</b>. 다들 손이 무거우니 <b>[누르기 시도]</b>!', {});
     await new Promise(res=>{
       renderTurnControls({eligiblePress:true, thankYouEligible:false, thankYouCard:null, sum:adjustedSum(me.hand)}, ()=>res());
       setDeckActive(false);
@@ -7704,69 +7769,10 @@ async function startTutorial(){
     showActionCallout('누르기!');
     vibrate([30,50,80]);
     await pause(900);
-    const r2 = await resultThen(me.name+'님의 "누르기" 성공.',
+    await resultThen(me.name+'님의 "누르기" 성공.',
       G.players.map((p,i)=> i===0 ? -(10-adjustedSum(me.hand)) : adjustedSum(p.hand)),
-      '<b>누르기 성공!</b> 나는 <b>−9점</b>. 큰 숫자를 쥐고 있던 민수·현우님은 그 숫자가 <b>그대로 점수</b>가 됐어요 — 남의 점수를 높이는 두 번째 방법!',
-      '정리해 보기 ▸', false);
-    void r2;
-    await tutTip(TUT_TIP_PRESS, '다음 연습 ▸', '여기까지 할게요').then(v=>{ alive(); if(!v) throw 'tutorial-finish'; });
-
-    /* ═════════ 연습 3 · 조합 완성(스트레이트) ═════════
-       7·8·9·J·2 → Q를 뽑고 2를 버림 → 한 바퀴 → 10을 뽑아 7~Q 스트레이트(−57) 선언 */
-    setTable(3, [
-      [C(7,'♣'),C(8,'♦'),C(9,'♠'),C(11,'♣'),C(2,'♥')],
-      [C(3,'♠'),C(5,'♥'),C(6,'♦'),C(12,'♥'),C(1,'♠')],
-      [C(4,'♠'),C(6,'♣'),C(13,'♦'),C(1,'♥'),C(8,'♥')],
-      [C(5,'♣'),C(3,'♦'),C(9,'♥'),C(13,'♣'),C(2,'♣')],
-    ], [C(12,'♦'), C(4,'♦'), C(2,'♦'), C(6,'♠'), C(10,'♥')]);
-    await pause(500);
-    await coach('연습 3 · 조합 완성', '이번엔 <b>6장 조합</b>으로 판을 끝내 볼게요. 내 패를 보세요 — <b>7·8·9·J</b>, 숫자가 거의 이어져 있죠?', {button:'다음', target: el('human-hand')});
-    alive();
-    await myDraw('연습 3 · 뽑기', '덱을 눌러 한 장 뽑아 보세요.');
-    const two = me.hand.find(c=>c.rank===2);
-    await pickDiscard('연습 3 · 모으기',
-      '<b>Q</b>가 왔어요! 7·8·9·<b>?</b>·J·Q — <b>10</b> 한 장이면 6장이 이어져요. 조합을 노릴 땐 큰 카드 대신 <b>안 맞는 2</b>를 버려요. (단, 모으는 동안 누가 판을 끝내면 이 큰 숫자들이 <b>그대로 내 점수</b>! 위험도 있어요.)',
-      two, '조합에 필요 없는 2를 버리세요.');
-    await botsRound([1,2,3], true);
-    await myDraw('연습 3 · 뽑기', '다시 내 차례! 덱을 눌러 뽑아 보세요. 10이 오면 좋겠는데…');
-    await declare('연습 3 · 스트레이트!',
-      '<b>10</b>이 왔어요! 7·8·9·10·J·Q <b>6장 스트레이트</b> 완성! <b>[게임 끝 선언]</b>을 누르세요.',
-      '완성 조합: 스트레이트 (7~Q) (-57)');
-    pushLog(me.name+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', escapeHtml(me.name)+'님이 "게임 끝" 선언! (스트레이트 (7~Q))', 'you win', true);
-    await resultThen(me.name+'님이 스트레이트 (7~Q)(으)로 판을 끝냈습니다.',
-      G.players.map((p,i)=> i===0 ? -57 : adjustedSum(p.hand)),
-      '스트레이트는 <b>숫자 합만큼 마이너스</b> — 7+8+9+10+11+12 = <b>−57점</b>! 나머지는 손에 남은 숫자만큼 플러스예요.',
-      '점수 알아보기 ▸', false);
-    await tutTip(TUT_TIP_COMBO, '다음 연습 ▸', '여기까지 할게요').then(v=>{ alive(); if(!v) throw 'tutorial-finish'; });
-
-    /* ═════════ 연습 4 · −100 ═════════
-       K·K·Q·J·10(59) → 3을 뽑고 버림 → 한 바퀴 → Q를 뽑아 합 71 → −100 선언 */
-    setTable(4, [
-      [C(13,'♠'),C(13,'♥'),C(12,'♦'),C(11,'♣'),C(10,'♠')],
-      [C(2,'♠'),C(4,'♥'),C(6,'♦'),C(8,'♠'),C(1,'♦')],
-      [C(3,'♥'),C(5,'♠'),C(7,'♦'),C(9,'♣'),C(2,'♦')],
-      [C(4,'♣'),C(6,'♥'),C(8,'♣'),C(1,'♠'),C(3,'♣')],
-    ], [C(3,'♦'), C(7,'♠'), C(4,'♦'), C(2,'♥'), C(12,'♣')]);
-    await pause(500);
-    await coach('연습 4 · −100',
-      '마지막은 <b>−100</b>! 6장 숫자 합이 <b>70 이상</b>이거나 <b>10 이하</b>면 −100점이에요. 지금 내 패는 13+13+12+11+10 = <b>59</b>.',
-      {button:'다음', target: el('human-hand')});
-    alive();
-    await myDraw('연습 4 · 뽑기', '덱을 눌러 한 장 뽑아 보세요.');
-    const three = me.hand.find(c=>c.rank===3);
-    await pickDiscard('연습 4 · 모으기', '<b>3</b>이 왔네요. 지금은 <b>큰 숫자를 모으는 중</b>이니, 작은 <b>3</b>을 버려요.', three, '작은 3을 버리세요.');
-    await botsRound([1,2,3], true);
-    await myDraw('연습 4 · 뽑기', '다시 내 차례! 합 70까지 <b>11</b> 남았어요. 덱을 눌러 보세요.');
-    await declare('연습 4 · −100!',
-      '<b>Q</b>가 왔어요! 13+13+12+12+11+10 = <b>71</b> — 70을 넘었어요! <b>[게임 끝 선언]</b>을 누르세요.',
-      '완성 조합: 숫자 합 조건 (-100)');
-    pushLog(me.name+'님이 "게임 끝" 선언! (-100 조건)', escapeHtml(me.name)+'님이 "게임 끝" 선언! (-100 조건)', 'you win', true);
-    await resultThen(me.name+'님이 -100 조건(으)로 판을 끝냈습니다.',
-      G.players.map((p,i)=> i===0 ? -100 : adjustedSum(p.hand)),
-      '숫자 합 <b>71</b> → <b>−100점</b>! 한 번에 크게 깎는 한 방이에요.',
-      '점수 알아보기 ▸', false);
-    await tutTip(TUT_TIP_HUNDRED, '확인');
-    alive();
+      '<b>누르기 성공! −9점.</b> 큰 숫자를 쥔 사람들은 그대로 점수가 돼요.',
+      '튜토리얼 마치기 ▸', false);
     finish();
   }catch(e){
     if(e === 'tutorial-finish'){ finish(); return; }
@@ -7775,58 +7781,37 @@ async function startTutorial(){
   }
 }
 
-/* 연습 사이의 설명 팝업. 확인 → true, 보조 버튼 → false. */
-const TUT_LESSONS = 4;
+/* 연습 사이의 짧은 정리 팝업. 확인 → true, 보조 버튼 → false. */
+const TUT_LESSONS = 5;
 function tipRow(name, sub, cards, score, hot){
   return '<div class="tip-row'+(hot?' hot':'')+'"><div class="tip-head"><span class="tip-name">'+name
     +(sub?'<small>'+sub+'</small>':'')+'</span><span class="tip-score'+(/\+/.test(score)?' plus':'')+'">'+score+'</span></div>'
     +(cards ? '<div class="tip-cards">'+cards.split(/\s+/).map(rbCardHTML).join('')+'</div>' : '')+'</div>';
 }
-function TUT_TIP_INTRO(){
-  return { title:'게임 방법 한눈에', icon:'🃏',
-    lead:'목표는 하나 — <b>내 손패 합은 낮게, 남의 손패 합은 높게!</b> 13판이 끝났을 때 누적 점수가 가장 낮은 사람이 1등이에요.',
-    body:
-      '<div class="tip-flow">'
-      +'<div class="tip-flow-step"><span class="tip-num">1</span><span><b>내 차례:</b> 덱에서 <b>1장 뽑기</b></span></div>'
-      +'<div class="tip-flow-step"><span class="tip-num">2</span><span><b>6장이 조합이면</b> “게임 끝” 선언 · <b>아니면 1장 버리기</b></span></div>'
-      +'<div class="tip-flow-step"><span class="tip-num">!</span><span>누가 카드를 버린 직후 ~ <b>다음 사람이 덱을 뽑기 전</b>에는 누구나 <b>뻥·꽝·잡기</b>로 끼어들 수 있어요</span></div>'
-      +'</div>'
-      +'<div class="tip-cols">'
-      +'<div class="tip-col"><div class="tip-col-h">⬇ 내 점수 낮추기</div>'
-      +'<p><b>뻥</b> 같은 숫자 2장 + 1장 버림<br><b>꽝</b> 같은 숫자 3장 + 1장 버림<br>→ 손패가 줄어 합이 낮아져요</p>'
-      +'<p><b>6장 조합</b> → 마이너스 점수!<br><span class="tip-warn">⚠ 모으다가 남이 먼저 판을 끝내면 들고 있던 숫자가 그대로 내 점수</span></p></div>'
-      +'<div class="tip-col"><div class="tip-col-h">⬆ 남의 점수 높이기</div>'
-      +'<p><b>잡기</b> 내 손의 짝(2장)과 같은 숫자를 누가 버리면 판 끝 — 버린 사람 <b>+30 벌점</b></p>'
-      +'<p><b>누르기</b> 뻥·꽝으로 손이 가벼워졌을 때 판을 일찍 끝내, 다른 사람들이 큰 숫자를 그대로 떠안게 해요</p></div>'
-      +'</div>',
-    foot:'이제 <b>연습 네 판</b>으로 하나씩 직접 해 봐요 — ① 뻥·잡기 ② 꽝·누르기 ③ 조합 ④ −100' };
+function TUT_TIP_STRAIGHT(){
+  return { title:'스트레이트', icon:'🃏',
+    lead:'숫자 6장이 이어지면 <b>숫자 합만큼 마이너스</b>!',
+    body: tipRow('7 ~ Q', '', '7♣ 8♦ 9♠ 10♥ J♣ Q♦', '−57')
+        + tipRow('A ~ 6', 'A는 보통 1', 'A♠ 2♥ 3♦ 4♣ 5♠ 6♥', '−21')
+        + tipRow('9 ~ A (특별!)', '이때만 A = 14 · 최고점', '9♦ 10♠ J♥ Q♣ K♦ A♠', '−69', true),
+    foot:'' };
 }
-function TUT_TIP_PRESS(){
-  return { title:'남의 점수 높이기', icon:'🎯',
-    lead:'판이 끝나면 다른 사람은 <b>손에 남은 숫자 합</b>만큼 점수를 받아요. 그래서 <b>남들이 손이 무거울 때 판을 끝내는 것</b>이 공격이에요.',
-    body: tipRow('잡기', '내 짝(정확히 2장)과 같은 숫자를 누가 버리면 · 차례 상관없이', '*8♠ *8♥ 8♦', '버린 사람 +30', true)
-        + tipRow('누르기 성공', '내 합이 모두보다 낮을 때', 'A♣', '−(10−합)')
-        + tipRow('누르기 실패', '나와 합이 같거나 낮은 사람이 있으면', '', '내 합 +50')
-        + '<div class="tip-cond"><b>누르기 조건</b> ① 이번 판에 내가 뻥·꽝 성공 ② <b>나 말고 다른 누군가도</b> 뻥·꽝 성공(혼자서는 불가) ③ 내 손패 합 <b>10 미만</b> ④ 내 차례에 덱을 뽑기 전</div>',
-    foot:'남들이 몇 장 들고 있는지 보고 누르세요. 뻥·꽝을 친 사람은 손이 가벼워 <b>실패</b>할 수 있어요!' };
-}
-function TUT_TIP_COMBO(){
-  return { title:'조합 점수표', icon:'🃏',
-    lead:'내 차례에 뽑아서 <b>6장이 모두 맞으면</b> “게임 끝”을 선언해요. 나는 <b>마이너스</b>, 다른 사람은 손에 남은 숫자만큼 <b>플러스</b>!',
-    body: tipRow('스트레이트', '6장 연속 · 숫자 합만큼', '7♣ 8♦ 9♠ 10♥ J♣ Q♦', '−57', true)
-        + tipRow('4 / 2', '같은 숫자 4장 + 2장', '5♠ 5♥ 5♦ 5♣ 9♠ 9♥', '−50')
-        + tipRow('3 / 3', '같은 숫자 3장 + 3장', '4♠ 4♥ 4♦ J♣ J♠ J♥', '−30')
-        + tipRow('4 / 1 / 1', '같은 숫자 4장 + 아무거나 2장', '8♠ 8♥ 8♦ 8♣ 2♠ K♥', '−30')
-        + tipRow('2 / 2 / 2', '같은 숫자 2장씩 세 쌍', '3♠ 3♥ 6♦ 6♣ Q♠ Q♥', '−10'),
-    foot:'스트레이트는 클수록 이득 — 최고는 <b>9·10·J·Q·K·A = −69</b>. 단, 뻥·꽝으로 손이 줄면 6장 조합은 못 만들고, 모으는 중에 남이 판을 끝내면 <b>들고 있던 숫자가 그대로 내 점수</b>예요.' };
+function TUT_TIP_PAIRS(){
+  return { title:'같은 숫자 조합', icon:'🂠',
+    lead:'같은 숫자를 모아 6장을 채우면 끝! 많이 모을수록 점수가 커요.',
+    body: tipRow('2 / 2 / 2', '짝 세 쌍', '3♠ 3♥ 8♦ 8♣ Q♠ Q♥', '−10')
+        + tipRow('3 / 3', '3장 + 3장', '4♠ 4♥ 4♦ J♣ J♠ J♥', '−30')
+        + tipRow('4 / 1 / 1', '4장 + 아무거나 2장', '8♠ 8♥ 8♦ 8♣ 2♠ K♥', '−30')
+        + tipRow('4 / 2', '4장 + 짝', '5♠ 5♥ 5♦ 5♣ 9♠ 9♥', '−50', true),
+    foot:'' };
 }
 function TUT_TIP_HUNDRED(){
-  return { title:'−100 점수', icon:'💯',
-    lead:'6장 <b>숫자 합이 10 이하</b>이거나 <b>70 이상</b>이면 −100점! (A=1, J=11, Q=12, K=13)',
-    body: tipRow('합 70 이상', '10+11+11+12+13+13 = 70', '10♠ J♥ J♦ Q♣ K♠ K♥', '−100', true)
-        + tipRow('합 10 이하', '1+1+1+2+2+3 = 10', 'A♠ A♥ A♦ 2♣ 2♠ 3♥', '−100')
-        + tipRow('조합과 겹치면 더해요', '3/3(−30) + 합 75(−100)', 'Q♠ Q♥ Q♦ K♣ K♠ K♥', '−130', true),
-    foot:'큰 카드가 자꾸 들어오면 버리지 말고 <b>−100</b>을 노려 보세요. 단, 못 만들고 판이 끝나면 그 큰 숫자가 <b>그대로 내 점수</b>가 되는 모험이에요!' };
+  return { title:'−100', icon:'💯',
+    lead:'6장 합이 <b>70 이상</b> 또는 <b>10 이하</b> (J=11 · Q=12 · K=13)',
+    body: tipRow('합 70 이상', '', '10♠ J♥ J♦ Q♣ K♠ K♥', '−100')
+        + tipRow('합 10 이하', '', 'A♠ A♥ A♦ 2♣ 2♠ 3♥', '−100')
+        + tipRow('조합과 겹치면 더해요', '3/3 + 합 75', 'Q♠ Q♥ Q♦ K♣ K♠ K♥', '−130', true),
+    foot:'' };
 }
 function tutTip(makeTip, okLabel, altLabel){
   const t = makeTip();
@@ -7834,7 +7819,8 @@ function tutTip(makeTip, okLabel, altLabel){
   el('tut-tip-title').textContent = t.title;
   el('tut-tip-lead').innerHTML = t.lead;
   el('tut-tip-body').innerHTML = t.body;
-  el('tut-tip-foot').innerHTML = t.foot;
+  el('tut-tip-foot').innerHTML = t.foot || '';
+  el('tut-tip-foot').hidden = !t.foot;
   const ok = el('btn-tut-tip-ok'), alt = el('btn-tut-tip-alt');
   ok.textContent = okLabel || '확인';
   alt.hidden = !altLabel; if(altLabel) alt.textContent = altLabel;
@@ -7856,6 +7842,7 @@ function tutorialBackHome(){
   el('topbar-meta-setup').style.display='flex';
   el('screen-setup').style.display='flex';
 }
+el('btn-tut-rulebook').addEventListener('click', ()=>{ rulebookCurrentIndex = 0; openRulebook(); });
 el('btn-tut-play').addEventListener('click', ()=>{ toggleOverlay('overlay-tutorial-end', false); tutorialBackHome(); startGame(); });
 el('btn-tut-home').addEventListener('click', ()=>{ toggleOverlay('overlay-tutorial-end', false); tutorialBackHome(); });
 el('btn-tut-ask-yes').addEventListener('click', ()=>{ toggleOverlay('overlay-tutorial-ask', false); startTutorial(); });
